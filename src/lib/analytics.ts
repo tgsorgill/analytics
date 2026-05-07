@@ -1,0 +1,417 @@
+import { scoreToPercent } from "@/lib/score";
+import { isStudentIdentifierKey } from "@/lib/privacy";
+import type {
+  AnalyticsResult,
+  Cluster,
+  DistributionBin,
+  NormalizedRecord,
+  SubjectStat,
+  TopicStat,
+  TrendPoint,
+  VarianceItem,
+} from "@/lib/types";
+import { clamp, round } from "@/lib/utils";
+
+const masteryThreshold = 80;
+
+export function computeAnalytics(records: NormalizedRecord[]): AnalyticsResult {
+  const percentages = records.map((record) => scoreToPercent(record.score, record.maxScore)).filter(Number.isFinite);
+  if (!percentages.length) {
+    return emptyAnalytics(records);
+  }
+
+  const topicStats = groupStats(records, "topic").map(toTopicStat).sort((a, b) => a.average - b.average);
+  const subjectComparisons = groupStats(records, "subject")
+    .map(toSubjectStat)
+    .sort((a, b) => b.average - a.average);
+  const weakTopics = topicStats.slice(0, 5);
+  const strongTopics = [...topicStats].sort((a, b) => b.average - a.average).slice(0, 5);
+  const distribution = buildDistribution(percentages);
+  const trendPoints = buildTrend(records);
+  const trend = {
+    points: trendPoints,
+    slope: trendPoints.length > 1 ? round(linearSlope(trendPoints.map((point, index) => [index, point.average])), 2) : 0,
+    direction: trendDirection(trendPoints),
+  } as const;
+  const clusters = buildClusters(percentages);
+  const masteryBreakdown = clusters.map((cluster) => ({
+    label: cluster.label,
+    count: cluster.count,
+    percentage: percentages.length ? round((cluster.count / percentages.length) * 100, 1) : 0,
+  }));
+
+  return {
+    generatedAt: new Date().toISOString(),
+    recordCount: percentages.length,
+    overview: {
+      mean: round(mean(percentages), 2),
+      median: round(median(percentages), 2),
+      mode: mode(percentages).map((value) => round(value, 2)),
+      standardDeviation: round(standardDeviation(percentages), 2),
+      min: round(Math.min(...percentages), 2),
+      max: round(Math.max(...percentages), 2),
+      consistencyScore: consistencyScore(percentages),
+      masteryRate: masteryRate(percentages),
+    },
+    weakTopics,
+    strongTopics,
+    topicStats,
+    subjectComparisons,
+    distribution,
+    trend,
+    variance: {
+      byTopic: groupStats(records, "topic")
+        .map(toVarianceItem)
+        .sort((a, b) => b.variance - a.variance)
+        .slice(0, 8),
+      bySubject: groupStats(records, "subject")
+        .map(toVarianceItem)
+        .sort((a, b) => b.variance - a.variance)
+        .slice(0, 8),
+    },
+    clusters,
+    masteryBreakdown,
+    chartData: {
+      topicPerformance: topicStats.map((topic) => ({
+        topic: topic.topic,
+        average: topic.average,
+        masteryRate: topic.masteryRate,
+        count: topic.count,
+      })),
+      subjectComparison: subjectComparisons.map((subject) => ({
+        subject: subject.subject,
+        average: subject.average,
+        masteryRate: subject.masteryRate,
+        count: subject.count,
+      })),
+      distribution,
+      trend: trendPoints,
+      clusters,
+    },
+    limitations: buildLimitations(records),
+  };
+}
+
+function emptyAnalytics(records: NormalizedRecord[]): AnalyticsResult {
+  const distribution = buildDistribution([]);
+  const clusters = buildClusters([]);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    recordCount: 0,
+    overview: {
+      mean: 0,
+      median: 0,
+      mode: [],
+      standardDeviation: 0,
+      min: 0,
+      max: 0,
+      consistencyScore: 0,
+      masteryRate: 0,
+    },
+    weakTopics: [],
+    strongTopics: [],
+    topicStats: [],
+    subjectComparisons: [],
+    distribution,
+    trend: {
+      points: [],
+      slope: 0,
+      direction: "insufficient_data",
+    },
+    variance: {
+      byTopic: [],
+      bySubject: [],
+    },
+    clusters,
+    masteryBreakdown: clusters.map((cluster) => ({
+      label: cluster.label,
+      count: cluster.count,
+      percentage: 0,
+    })),
+    chartData: {
+      topicPerformance: [],
+      subjectComparison: [],
+      distribution,
+      trend: [],
+      clusters,
+    },
+    limitations: ["No parseable score records were available.", ...buildLimitations(records)],
+  };
+}
+
+function groupStats(records: NormalizedRecord[], field: "topic" | "subject") {
+  const groups = new Map<string, number[]>();
+
+  for (const record of records) {
+    const key = groupLabel(record, field);
+    const value = scoreToPercent(record.score, record.maxScore);
+    if (!Number.isFinite(value)) {
+      continue;
+    }
+
+    groups.set(key, [...(groups.get(key) ?? []), value]);
+  }
+
+  return Array.from(groups.entries()).map(([label, values]) => ({
+    label,
+    values,
+  }));
+}
+
+function toTopicStat(group: { label: string; values: number[] }): TopicStat {
+  return {
+    topic: group.label,
+    count: group.values.length,
+    average: round(mean(group.values), 2),
+    median: round(median(group.values), 2),
+    masteryRate: masteryRate(group.values),
+    standardDeviation: round(standardDeviation(group.values), 2),
+    consistencyScore: consistencyScore(group.values),
+  };
+}
+
+function toSubjectStat(group: { label: string; values: number[] }): SubjectStat {
+  return {
+    subject: group.label,
+    count: group.values.length,
+    average: round(mean(group.values), 2),
+    masteryRate: masteryRate(group.values),
+    standardDeviation: round(standardDeviation(group.values), 2),
+  };
+}
+
+function toVarianceItem(group: { label: string; values: number[] }): VarianceItem {
+  const std = standardDeviation(group.values);
+
+  return {
+    label: group.label,
+    count: group.values.length,
+    variance: round(std * std, 2),
+    standardDeviation: round(std, 2),
+  };
+}
+
+function buildDistribution(values: number[]): DistributionBin[] {
+  const bins: DistributionBin[] = [
+    { label: "0-59", min: 0, max: 59, count: 0 },
+    { label: "60-69", min: 60, max: 69, count: 0 },
+    { label: "70-79", min: 70, max: 79, count: 0 },
+    { label: "80-89", min: 80, max: 89, count: 0 },
+    { label: "90-100", min: 90, max: 100, count: 0 },
+  ];
+
+  for (const value of values) {
+    const boundedValue = clamp(value, 0, 100);
+    const bin = bins.find((candidate) => boundedValue >= candidate.min && boundedValue <= candidate.max) ?? bins[bins.length - 1];
+    bin.count += 1;
+  }
+
+  return bins;
+}
+
+function buildTrend(records: NormalizedRecord[]): TrendPoint[] {
+  const groups = new Map<string, number[]>();
+
+  for (const record of records) {
+    if (!record.date) {
+      continue;
+    }
+
+    const value = scoreToPercent(record.score, record.maxScore);
+    groups.set(record.date, [...(groups.get(record.date) ?? []), value]);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, values]) => ({
+      date,
+      average: round(mean(values), 2),
+      count: values.length,
+    }));
+}
+
+function trendDirection(points: TrendPoint[]): AnalyticsResult["trend"]["direction"] {
+  if (points.length < 2) {
+    return "insufficient_data";
+  }
+
+  const slope = linearSlope(points.map((point, index) => [index, point.average]));
+  if (slope > 0.75) {
+    return "improving";
+  }
+
+  if (slope < -0.75) {
+    return "declining";
+  }
+
+  return "flat";
+}
+
+function buildClusters(values: number[]): Cluster[] {
+  const definitions: Omit<Cluster, "count" | "average">[] = [
+    { id: "needsSupport", label: "Needs support", min: 0, max: 59 },
+    { id: "approaching", label: "Approaching", min: 60, max: 74 },
+    { id: "proficient", label: "Proficient", min: 75, max: 89 },
+    { id: "advanced", label: "Advanced", min: 90, max: Number.POSITIVE_INFINITY },
+  ];
+
+  return definitions.map((definition) => {
+    const clusterValues = values.filter((value) => value >= definition.min && value <= definition.max);
+
+    return {
+      ...definition,
+      count: clusterValues.length,
+      average: round(mean(clusterValues), 2),
+    };
+  });
+}
+
+function buildLimitations(records: NormalizedRecord[]) {
+  const limitations: string[] = [];
+
+  if (!records.some((record) => record.topic || record.metricName || record.assessment || firstDimension(record))) {
+    limitations.push("Category-level analytics are limited because no grouping field was mapped.");
+  }
+
+  if (!records.some((record) => record.subject || record.term || record.assessment || firstDimension(record))) {
+    limitations.push("Comparison analytics are limited because no subject, term, assessment, or grouping field was mapped.");
+  }
+
+  if (!records.some((record) => record.date)) {
+    limitations.push("Trend analytics are unavailable because no date field was mapped.");
+  }
+
+  if (records.length < 10) {
+    limitations.push("Small datasets can produce unstable variance and clustering results.");
+  }
+
+  return limitations;
+}
+
+function groupLabel(record: NormalizedRecord, field: "topic" | "subject") {
+  if (field === "topic") {
+    return (
+      safeLabel(record.topic, record) ||
+      safeLabel(record.metricName, record) ||
+      safeLabel(record.assessment, record) ||
+      firstDimension(record) ||
+      "Unspecified"
+    );
+  }
+
+  return (
+    safeLabel(record.subject, record) ||
+    safeLabel(record.term, record) ||
+    safeLabel(record.assessment, record) ||
+    firstDimension(record) ||
+    "Unspecified"
+  );
+}
+
+function firstDimension(record: NormalizedRecord) {
+  const values = Object.entries(record.dimensions ?? {})
+    .filter(([key, value]) => value.trim() && !isStudentIdentifierKey(key))
+    .map(([, value]) => safeLabel(value, record))
+    .filter(Boolean);
+  return values[0];
+}
+
+function safeLabel(value: string | undefined, record: NormalizedRecord) {
+  const label = value?.trim();
+  if (!label) {
+    return undefined;
+  }
+
+  if (label === record.studentName?.trim() || label === record.studentId?.trim()) {
+    return undefined;
+  }
+
+  return label;
+}
+
+function mean(values: number[]) {
+  if (!values.length) {
+    return 0;
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function median(values: number[]) {
+  if (!values.length) {
+    return 0;
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const midpoint = Math.floor(sorted.length / 2);
+
+  if (sorted.length % 2 === 0) {
+    return (sorted[midpoint - 1] + sorted[midpoint]) / 2;
+  }
+
+  return sorted[midpoint];
+}
+
+function mode(values: number[]) {
+  if (!values.length) {
+    return [];
+  }
+
+  const roundedValues = values.map((value) => round(value, 0));
+  const counts = new Map<number, number>();
+  for (const value of roundedValues) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  const max = Math.max(...counts.values());
+  if (max <= 1) {
+    return [];
+  }
+
+  return Array.from(counts.entries())
+    .filter(([, count]) => count === max)
+    .map(([value]) => value)
+    .slice(0, 5);
+}
+
+function standardDeviation(values: number[]) {
+  if (values.length < 2) {
+    return 0;
+  }
+
+  const average = mean(values);
+  const variance = values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function masteryRate(values: number[]) {
+  if (!values.length) {
+    return 0;
+  }
+
+  return round((values.filter((value) => value >= masteryThreshold).length / values.length) * 100, 1);
+}
+
+function consistencyScore(values: number[]) {
+  return round(clamp(100 - standardDeviation(values), 0, 100), 1);
+}
+
+function linearSlope(points: number[][]) {
+  const n = points.length;
+  if (n < 2) {
+    return 0;
+  }
+
+  const sumX = points.reduce((sum, [x]) => sum + x, 0);
+  const sumY = points.reduce((sum, [, y]) => sum + y, 0);
+  const sumXY = points.reduce((sum, [x, y]) => sum + x * y, 0);
+  const sumX2 = points.reduce((sum, [x]) => sum + x * x, 0);
+  const denominator = n * sumX2 - sumX ** 2;
+
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return (n * sumXY - sumX * sumY) / denominator;
+}
