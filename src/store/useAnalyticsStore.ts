@@ -13,7 +13,7 @@ import type {
 } from "@/lib/types";
 
 type AppPhase = "upload" | "mapping" | "dashboard";
-type WorkspaceMode = "overview" | "extra" | "formulas" | "architecture";
+type WorkspaceMode = "overview" | "extra" | "exports" | "formulas" | "architecture";
 
 type AnalyticsStore = {
   phase: AppPhase;

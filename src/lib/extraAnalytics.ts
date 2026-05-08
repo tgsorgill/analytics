@@ -305,15 +305,21 @@ function groupByCohort(records: NormalizedRecord[]) {
 }
 
 function groupByTime(records: NormalizedRecord[]) {
-  const hasDates = records.some((record) => record.date);
-  if (hasDates) {
-    return groupBy(records, (record) => record.date ?? "Undated").sort((a, b) => a.label.localeCompare(b.label));
+  const datedGroups = groupBy(
+    records.filter((record) => record.date),
+    (record) => record.date ?? "Undated",
+  ).sort((a, b) => a.label.localeCompare(b.label));
+
+  if (datedGroups.length >= 2) {
+    return datedGroups;
   }
 
-  const bucketSize = Math.max(25, Math.ceil(records.length / 12));
+  const bucketCount = Math.min(8, Math.max(2, Math.ceil(records.length / 25)));
+  const bucketSize = Math.max(1, Math.ceil(records.length / bucketCount));
   const buckets = new Map<string, NormalizedRecord[]>();
   records.forEach((record, index) => {
-    const bucket = `Segment ${Math.floor(index / bucketSize) + 1}`;
+    const bucketIndex = Math.floor(index / bucketSize);
+    const bucket = bucketCount === 2 ? (bucketIndex === 0 ? "Earlier records" : "Later records") : `Segment ${bucketIndex + 1}`;
     buckets.set(bucket, [...(buckets.get(bucket) ?? []), record]);
   });
 

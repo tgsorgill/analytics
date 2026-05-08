@@ -7,6 +7,7 @@ import type {
   NormalizedRecord,
   SubjectStat,
   TopicStat,
+  TrendSignal,
   TrendPoint,
   VarianceItem,
 } from "@/lib/types";
@@ -28,11 +29,16 @@ export function computeAnalytics(records: NormalizedRecord[]): AnalyticsResult {
   const strongTopics = [...topicStats].sort((a, b) => b.average - a.average).slice(0, 5);
   const distribution = buildDistribution(percentages);
   const trendPoints = buildTrend(records);
+  const overallTrendSignal = buildTrendSignal("Overall classroom", trendPoints);
   const trend = {
     points: trendPoints,
     slope: trendPoints.length > 1 ? round(linearSlope(trendPoints.map((point, index) => [index, point.average])), 2) : 0,
     direction: trendDirection(trendPoints),
+    firstAverage: overallTrendSignal.firstAverage,
+    latestAverage: overallTrendSignal.latestAverage,
+    change: overallTrendSignal.change,
   } as const;
+  const topicTrendSignals = buildTopicTrendSignals(records);
   const clusters = buildClusters(percentages);
   const masteryBreakdown = clusters.map((cluster) => ({
     label: cluster.label,
@@ -59,6 +65,12 @@ export function computeAnalytics(records: NormalizedRecord[]): AnalyticsResult {
     subjectComparisons,
     distribution,
     trend,
+    trendSignals: {
+      overall: overallTrendSignal,
+      byTopic: topicTrendSignals,
+      improving: topicTrendSignals.filter((signal) => signal.direction === "improving").slice(0, 6),
+      declining: topicTrendSignals.filter((signal) => signal.direction === "declining").slice(0, 6),
+    },
     variance: {
       byTopic: groupStats(records, "topic")
         .map(toVarianceItem)
@@ -118,6 +130,15 @@ function emptyAnalytics(records: NormalizedRecord[]): AnalyticsResult {
       points: [],
       slope: 0,
       direction: "insufficient_data",
+      firstAverage: 0,
+      latestAverage: 0,
+      change: 0,
+    },
+    trendSignals: {
+      overall: emptyTrendSignal("Overall classroom"),
+      byTopic: [],
+      improving: [],
+      declining: [],
     },
     variance: {
       byTopic: [],
@@ -211,7 +232,18 @@ function buildDistribution(values: number[]): DistributionBin[] {
 }
 
 function buildTrend(records: NormalizedRecord[]): TrendPoint[] {
-  const groups = new Map<string, number[]>();
+  const groups = buildChronologicalGroups(records);
+
+  return groups
+    .map(([date, values]) => ({
+      date,
+      average: round(mean(values), 2),
+      count: values.length,
+    }));
+}
+
+function buildChronologicalGroups(records: NormalizedRecord[]): [string, number[]][] {
+  const datedGroups = new Map<string, number[]>();
 
   for (const record of records) {
     if (!record.date) {
@@ -219,16 +251,31 @@ function buildTrend(records: NormalizedRecord[]): TrendPoint[] {
     }
 
     const value = scoreToPercent(record.score, record.maxScore);
-    groups.set(record.date, [...(groups.get(record.date) ?? []), value]);
+    if (Number.isFinite(value)) {
+      datedGroups.set(record.date, [...(datedGroups.get(record.date) ?? []), value]);
+    }
   }
 
-  return Array.from(groups.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, values]) => ({
-      date,
-      average: round(mean(values), 2),
-      count: values.length,
-    }));
+  if (datedGroups.size >= 2) {
+    return Array.from(datedGroups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }
+
+  const usableValues = records.map((record) => scoreToPercent(record.score, record.maxScore)).filter(Number.isFinite);
+  if (usableValues.length < 2) {
+    return [];
+  }
+
+  const bucketCount = Math.min(8, Math.max(2, Math.ceil(usableValues.length / 25)));
+  const bucketSize = Math.ceil(usableValues.length / bucketCount);
+  const buckets = new Map<string, number[]>();
+
+  usableValues.forEach((value, index) => {
+    const bucketIndex = Math.floor(index / bucketSize);
+    const label = bucketCount === 2 ? (bucketIndex === 0 ? "Earlier records" : "Later records") : `Segment ${bucketIndex + 1}`;
+    buckets.set(label, [...(buckets.get(label) ?? []), value]);
+  });
+
+  return Array.from(buckets.entries());
 }
 
 function trendDirection(points: TrendPoint[]): AnalyticsResult["trend"]["direction"] {
@@ -246,6 +293,56 @@ function trendDirection(points: TrendPoint[]): AnalyticsResult["trend"]["directi
   }
 
   return "flat";
+}
+
+function buildTopicTrendSignals(records: NormalizedRecord[]) {
+  const groups = new Map<string, NormalizedRecord[]>();
+
+  for (const record of records) {
+    const label = groupLabel(record, "topic");
+    groups.set(label, [...(groups.get(label) ?? []), record]);
+  }
+
+  return Array.from(groups.entries())
+    .map(([label, groupRecords]) => buildTrendSignal(label, buildTrend(groupRecords)))
+    .filter((signal) => signal.points >= 2 && signal.count >= 2)
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+}
+
+function buildTrendSignal(label: string, points: TrendPoint[]): TrendSignal {
+  if (points.length < 2) {
+    return emptyTrendSignal(label);
+  }
+
+  const first = points[0];
+  const latest = points[points.length - 1];
+  const change = round(latest.average - first.average, 1);
+
+  return {
+    label,
+    firstLabel: first.date,
+    latestLabel: latest.date,
+    firstAverage: first.average,
+    latestAverage: latest.average,
+    change,
+    direction: trendDirection(points),
+    points: points.length,
+    count: points.reduce((sum, point) => sum + point.count, 0),
+  };
+}
+
+function emptyTrendSignal(label: string): TrendSignal {
+  return {
+    label,
+    firstLabel: "",
+    latestLabel: "",
+    firstAverage: 0,
+    latestAverage: 0,
+    change: 0,
+    direction: "insufficient_data",
+    points: 0,
+    count: 0,
+  };
 }
 
 function buildClusters(values: number[]): Cluster[] {
@@ -279,7 +376,7 @@ function buildLimitations(records: NormalizedRecord[]) {
   }
 
   if (!records.some((record) => record.date)) {
-    limitations.push("Trend analytics are unavailable because no date field was mapped.");
+    limitations.push("Trend analytics use upload-order segments because no date field was mapped.");
   }
 
   if (records.length < 10) {

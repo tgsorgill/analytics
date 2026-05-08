@@ -106,12 +106,12 @@ export async function requestExtraAiInsight({ token, model, extraAnalytics }: Ex
 
   const payload = (await response.json().catch(() => ({}))) as HuggingFaceChatResponse;
   if (!response.ok) {
-    throw new Error(payload.error || `Hugging Face EXTRA summary failed with ${response.status}.`);
+    throw new Error(payload.error || `Hugging Face Extra summary failed with ${response.status}.`);
   }
 
   const text = payload.choices?.[0]?.message?.content;
   if (!text) {
-    throw new Error("Hugging Face returned an empty EXTRA response.");
+    throw new Error("Hugging Face returned an empty Extra response.");
   }
 
   return parseAiInsight(text);

@@ -19,7 +19,7 @@ worker.onmessage = (event: MessageEvent<ExtraAnalyticsWorkerRequest>) => {
   } catch (error) {
     worker.postMessage({
       type: "error",
-      message: error instanceof Error ? error.message : "EXTRA analytics worker failed.",
+      message: error instanceof Error ? error.message : "Extra analytics worker failed.",
     });
   }
 };

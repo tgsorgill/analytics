@@ -17,7 +17,9 @@ export function AnalyticsApp() {
     setMappingValidation,
     setNormalized,
     setAnalytics,
+    setExtraAnalytics,
     setAiInsight,
+    setExtraAiInsight,
     isAnalyzing,
     setAnalyzing,
     setError,
@@ -40,6 +42,9 @@ export function AnalyticsApp() {
 
     setAnalyzing(true);
     setError(undefined);
+    setAiInsight(undefined);
+    setExtraAiInsight(undefined);
+    setExtraAnalytics(undefined);
 
     try {
       const normalized = normalizeRows(parsedCsv.rows, mappings);
@@ -51,8 +56,10 @@ export function AnalyticsApp() {
 
       setNormalized(normalized);
       const analytics = await computeAnalyticsInWorker(normalized.records);
-      setAnalytics(analytics);
       setAiInsight(undefined);
+      setExtraAiInsight(undefined);
+      setExtraAnalytics(undefined);
+      setAnalytics(analytics);
 
       if (configuredHfToken) {
         void requestAiInsight({
@@ -76,7 +83,18 @@ export function AnalyticsApp() {
     } finally {
       setAnalyzing(false);
     }
-  }, [mappings, parsedCsv, setAiInsight, setAnalytics, setAnalyzing, setError, setMappingValidation, setNormalized]);
+  }, [
+    mappings,
+    parsedCsv,
+    setAiInsight,
+    setAnalytics,
+    setAnalyzing,
+    setError,
+    setExtraAiInsight,
+    setExtraAnalytics,
+    setMappingValidation,
+    setNormalized,
+  ]);
 
   useEffect(() => {
     if (phase === "upload") {

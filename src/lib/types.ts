@@ -153,6 +153,20 @@ export type TrendPoint = {
   count: number;
 };
 
+export type TrendDirection = "improving" | "declining" | "flat" | "insufficient_data";
+
+export type TrendSignal = {
+  label: string;
+  firstLabel: string;
+  latestLabel: string;
+  firstAverage: number;
+  latestAverage: number;
+  change: number;
+  direction: TrendDirection;
+  points: number;
+  count: number;
+};
+
 export type Cluster = {
   id: "needsSupport" | "approaching" | "proficient" | "advanced";
   label: string;
@@ -190,7 +204,16 @@ export type AnalyticsResult = {
   trend: {
     points: TrendPoint[];
     slope: number;
-    direction: "improving" | "declining" | "flat" | "insufficient_data";
+    direction: TrendDirection;
+    firstAverage: number;
+    latestAverage: number;
+    change: number;
+  };
+  trendSignals: {
+    overall: TrendSignal;
+    byTopic: TrendSignal[];
+    improving: TrendSignal[];
+    declining: TrendSignal[];
   };
   variance: {
     byTopic: VarianceItem[];

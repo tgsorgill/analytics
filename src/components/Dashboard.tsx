@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { FileText, RefreshCcw } from "lucide-react";
+import { FileText, RefreshCcw, TrendingDown, TrendingUp } from "lucide-react";
 import { ArchitecturePanel } from "@/components/ArchitecturePanel";
 import { AiSummaryPanel } from "@/components/AiSummaryPanel";
 import { ExportPanel } from "@/components/ExportPanel";
@@ -29,7 +29,8 @@ import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 const chartColors = ["#16726d", "#2f69a1", "#c65d21", "#b8860b", "#7a5aa6", "#b63f3f"];
 const workspaceTabs = [
   { id: "overview", label: "Overview", activeClass: "bg-[#16726d] text-white" },
-  { id: "extra", label: "EXTRA", activeClass: "bg-[#101418] text-white" },
+  { id: "extra", label: "Extra", activeClass: "bg-[#101418] text-white" },
+  { id: "exports", label: "Exports", activeClass: "bg-[#c65d21] text-white" },
   { id: "formulas", label: "Formulas", activeClass: "bg-[#2f69a1] text-white" },
   { id: "architecture", label: "Architecture", activeClass: "bg-[#5a4f43] text-white" },
 ] as const;
@@ -84,6 +85,7 @@ export function Dashboard() {
       <div key={workspaceMode} className="workspace-view">
         {workspaceMode === "overview" ? <OverviewWorkspace analytics={analytics} /> : null}
         {workspaceMode === "extra" ? <ExtraWorkspace /> : null}
+        {workspaceMode === "exports" ? <ExportsWorkspace /> : null}
         {workspaceMode === "formulas" ? <FormulasWorkspace analytics={analytics} /> : null}
         {workspaceMode === "architecture" ? <ArchitecturePanel /> : null}
       </div>
@@ -95,6 +97,8 @@ function OverviewWorkspace({ analytics }: { analytics: AnalyticsResult }) {
   return (
     <section className="workspace-page flex flex-col gap-5">
       <Overview analytics={analytics} />
+
+      <TrendIntelligence analytics={analytics} />
 
       <section className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
         <CategoryPerformance analytics={analytics} />
@@ -113,10 +117,169 @@ function OverviewWorkspace({ analytics }: { analytics: AnalyticsResult }) {
 
       <CategoryHeatmap analytics={analytics} />
 
-      <ExportPanel />
-
       <AiSummaryPanel />
     </section>
+  );
+}
+
+function ExportsWorkspace() {
+  return (
+    <section className="workspace-page flex flex-col gap-5">
+      <div className="metric-panel interactive-panel reveal-up overflow-hidden">
+        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-normal text-[#9b4518]">Exports</p>
+            <h2 className="mt-1 text-2xl font-semibold">Download local reports and datasets</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#4f5954]">
+              Exports replace backend persistence: download normalized records, deterministic analytics, AI summaries, and
+              polished PDF reports without storing classroom data on a server.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {["Local", "Private", "Portable"].map((label) => (
+              <div key={label} className="rounded border border-[#d9ded8] bg-[#f7faf7] px-3 py-3 text-sm font-semibold">
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <ExportPanel />
+    </section>
+  );
+}
+
+function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
+  const overall = analytics.trendSignals.overall;
+  const improving = analytics.trendSignals.improving.slice(0, 4);
+  const declining = analytics.trendSignals.declining.slice(0, 4);
+  const hasTrend = overall.direction !== "insufficient_data";
+  const trendSections = [
+    {
+      key: "improving",
+      icon: <TrendingUp className="h-4 w-4" />,
+      title: "Improving categories",
+      items: improving,
+      tone: "up" as const,
+    },
+    {
+      key: "declining",
+      icon: <TrendingDown className="h-4 w-4" />,
+      title: "Declining categories",
+      items: declining,
+      tone: "down" as const,
+    },
+  ].filter((section) => section.items.length > 0);
+
+  return (
+    <section className="metric-panel interactive-panel reveal-up p-5 sm:p-6">
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-normal text-[#0f5a55]">Trend Intelligence</p>
+          <h2 className="text-xl font-semibold">Past-to-present movement</h2>
+        </div>
+        <span className="text-sm text-[#5b635f]">
+          {hasTrend ? `${overall.firstLabel} -> ${overall.latestLabel}` : "Needs at least two time or order segments"}
+        </span>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+        <div className="rounded border border-[#d9ded8] bg-[#f7faf7] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-normal text-[#6b746f]">Overall movement</div>
+              <div className="mt-2 text-3xl font-semibold">{hasTrend ? formatSignedChange(overall.change) : "No signal"}</div>
+              <div className="mt-1 text-sm text-[#4f5954]">
+                {hasTrend
+                  ? `${formatPercent(overall.firstAverage)} earlier to ${formatPercent(overall.latestAverage)} latest`
+                  : "Upload another dated or ordered dataset to compare movement."}
+              </div>
+            </div>
+            <TrendBadge direction={overall.direction} />
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded bg-[#e6ebe5]">
+            <div
+              className="animated-bar h-2 rounded"
+              style={{
+                width: `${hasTrend ? Math.max(8, Math.min(100, Math.abs(overall.change) * 5 + 18)) : 8}%`,
+                background: trendColor(overall.direction),
+              }}
+            />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-[#6b746f]">
+            Trend movement compares the earliest available period against the latest. When dates are missing, the app uses
+            upload-order segments and reports that limitation.
+          </p>
+        </div>
+
+        {trendSections.length ? (
+          <div className={cn("grid gap-4", trendSections.length > 1 ? "md:grid-cols-2" : "md:grid-cols-1")}>
+            {trendSections.map((section) => (
+              <TrendList
+                key={section.key}
+                icon={section.icon}
+                title={section.title}
+                items={section.items}
+                tone={section.tone}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded border border-dashed border-[#d9ded8] bg-white p-5 text-sm leading-6 text-[#6b746f]">
+            No category improvement or decline trend yet. Add dated records, repeated assessments, or ordered uploads to
+            unlock category-level movement.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TrendBadge({ direction }: { direction: AnalyticsResult["trend"]["direction"] }) {
+  return (
+    <span
+      className="rounded px-2 py-1 text-xs font-semibold uppercase tracking-normal text-white"
+      style={{ background: trendColor(direction) }}
+    >
+      {direction.replace("_", " ")}
+    </span>
+  );
+}
+
+function TrendList({
+  icon,
+  title,
+  items,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  items: AnalyticsResult["trendSignals"]["byTopic"];
+  tone: "up" | "down";
+}) {
+  return (
+    <div className="rounded border border-[#d9ded8] p-4">
+      <h3 className="mb-3 inline-flex items-center gap-2 font-semibold">
+        <span className={tone === "up" ? "text-[#16726d]" : "text-[#b63f3f]"}>{icon}</span>
+        {title}
+      </h3>
+      <div className="grid gap-2">
+        {items.map((item) => (
+          <div key={item.label} className="rounded border border-[#e6ebe5] bg-white p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate font-semibold">{item.label}</span>
+              <span className={tone === "up" ? "font-semibold text-[#16726d]" : "font-semibold text-[#b63f3f]"}>
+                {formatSignedChange(item.change)}
+              </span>
+            </div>
+            <div className="mt-1 text-xs text-[#6b746f]">
+              {formatPercent(item.firstAverage)} to {formatPercent(item.latestAverage)} | {item.points} points
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -155,6 +318,30 @@ function Overview({ analytics }: { analytics: AnalyticsResult }) {
       ))}
     </section>
   );
+}
+
+function formatSignedChange(value: number) {
+  if (!Number.isFinite(value)) {
+    return "0 pts";
+  }
+
+  return `${value > 0 ? "+" : ""}${formatNumber(value, 1)} pts`;
+}
+
+function trendColor(direction: AnalyticsResult["trend"]["direction"]) {
+  if (direction === "improving") {
+    return "#16726d";
+  }
+
+  if (direction === "declining") {
+    return "#b63f3f";
+  }
+
+  if (direction === "flat") {
+    return "#b8860b";
+  }
+
+  return "#6b746f";
 }
 
 function CategoryPerformance({ analytics }: { analytics: AnalyticsResult }) {

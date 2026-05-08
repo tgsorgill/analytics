@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 export function CsvUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const { isParsing, parseProgress, setParsedCsv, setParsing, setParseProgress, setError, error } =
+  const { isParsing, parseProgress, setParsedCsv, setParsing, setParseProgress, setError, setAiInsight, setExtraAiInsight, setExtraAnalytics, error } =
     useAnalyticsStore();
 
   async function handleFile(file?: File) {
@@ -28,6 +28,9 @@ export function CsvUpload() {
     setParsing(true);
     setParseProgress(0);
     setError(undefined);
+    setAiInsight(undefined);
+    setExtraAiInsight(undefined);
+    setExtraAnalytics(undefined);
 
     try {
       const parsed = await parseCsvFile(file, setParseProgress);

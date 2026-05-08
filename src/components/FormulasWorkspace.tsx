@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, LineChart, Sigma, Target } from "lucide-react";
+import { Activity, AlertTriangle, Brain, Calculator, Gauge, Layers3, LineChart, Network, Radar, Sigma, Target } from "lucide-react";
 import type { AnalyticsResult } from "@/lib/types";
 import { formatNumber, formatPercent } from "@/lib/utils";
 
@@ -82,6 +82,87 @@ const formulas = [
   },
 ];
 
+const extraGuide = [
+  {
+    icon: Network,
+    title: "Relationship Intelligence",
+    formula: "correlation(vector(category A by cohort), vector(category B by cohort))",
+    body: "Compares aggregate category patterns across anonymous cohorts or upload segments. It describes statistical alignment only, never causation.",
+  },
+  {
+    icon: Network,
+    title: "Correlation Matrix",
+    formula: "Pearson correlation from -1 to +1",
+    body: "Each cell compares two dimensions. Diagonal self-comparisons, such as Math Score with Math Score, are colored distinctly because they are always 1.00 by definition and are not a discovered relationship.",
+  },
+  {
+    icon: Activity,
+    title: "Relationship Map",
+    formula: "show links where abs(correlation) >= 0.42",
+    body: "Draws a network of dimensions with weak, moderate, or strong statistical relationships. Thicker links mean stronger absolute correlation.",
+  },
+  {
+    icon: Layers3,
+    title: "Curriculum Coverage",
+    formula: "coverage share = records in dimension / total records * 100",
+    body: "Shows how much of the uploaded dataset is devoted to each topic, skill, unit, standard, or teacher-defined dimension.",
+  },
+  {
+    icon: Layers3,
+    title: "Coverage Status",
+    formula: "compare coverage share against expected share = 100 / number of dimensions",
+    body: "Overrepresented dimensions appear much more often than expected; underrepresented dimensions appear much less often. This is a dataset balance signal, not a judgment of instruction.",
+  },
+  {
+    icon: LineChart,
+    title: "Progression Momentum",
+    formula: "rolling average over current and previous two time/order groups",
+    body: "Tracks classroom movement over time. If dates are missing, Extra uses upload-order segments and labels that limitation.",
+  },
+  {
+    icon: Gauge,
+    title: "Volatility",
+    formula: "standard deviation within each time/order group",
+    body: "Measures how unstable a period or segment is. Higher volatility means records in that segment are more spread out.",
+  },
+  {
+    icon: Brain,
+    title: "Anonymous Cohort Archetypes",
+    formula: "aggregate cohorts grouped by average, volatility, and trend slope",
+    body: "Creates classroom-level archetypes such as improving, volatile, or high-consistency groups. It never exposes or ranks individual students.",
+  },
+  {
+    icon: Calculator,
+    title: "Assessment Intelligence",
+    formula: "variance, dimension diversity, and concentration per assessment",
+    body: "Looks at assessments themselves: score spread, number of dimensions represented, and whether one dimension dominates an assessment.",
+  },
+  {
+    icon: AlertTriangle,
+    title: "Pattern Signals",
+    formula: "flag swings, volatility, coverage imbalance, and polarized distributions",
+    body: "Surfaces unusual aggregate patterns. These are statistical flags for teacher review, not explanations, blame, or diagnoses.",
+  },
+  {
+    icon: Radar,
+    title: "Intelligence Profile",
+    formula: "normalized 0-100 scores for balance, stability, relationship density, diversity, and confidence",
+    body: "Summarizes Extra's advanced signals into a radar-style profile so the workspace can be scanned quickly.",
+  },
+  {
+    icon: Target,
+    title: "Dimension Lens",
+    formula: "filter Extra modules to one selected dimension label",
+    body: "Lets teachers focus the relationship and signal views on a chosen topic, skill, standard, unit, objective, or assessment dimension.",
+  },
+  {
+    icon: Brain,
+    title: "Extra AI Brief",
+    formula: "AI receives only aggregate Extra analytics JSON",
+    body: "Explains advanced findings in teacher-friendly language. It cannot inspect raw CSV rows, evaluate students, infer traits, or create decisions.",
+  },
+];
+
 export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult }) {
   return (
     <section className="workspace-page reveal-up flex flex-col gap-5">
@@ -144,6 +225,39 @@ export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult })
             </article>
           );
         })}
+      </section>
+
+      <section className="metric-panel interactive-panel p-6">
+        <div className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">
+          <Network className="h-4 w-4" />
+          Extra Workspace Guide
+        </div>
+        <h3 className="mt-3 text-2xl font-semibold">What every Extra module means</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#4f5954]">
+          Extra is an advanced aggregate analytics workspace. These explanations describe each module and the deterministic
+          signal behind it.
+        </p>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {extraGuide.map((item) => {
+            const Icon = item.icon;
+            return (
+              <article key={item.title} className="rounded border border-[#d9ded8] bg-white p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-[#e4edf5] text-[#2f69a1]">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">{item.title}</h4>
+                    <code className="mt-2 block rounded border border-[#d9ded8] bg-[#f7faf7] px-3 py-2 text-sm text-[#27302c]">
+                      {item.formula}
+                    </code>
+                    <p className="mt-3 text-sm leading-6 text-[#4f5954]">{item.body}</p>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section className="metric-panel interactive-panel p-5">

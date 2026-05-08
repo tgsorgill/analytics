@@ -72,7 +72,7 @@ export function ExtraWorkspace() {
     requestedExtra.current = true;
     computeExtraAnalyticsInWorker(normalized.records)
       .then(setExtraAnalytics)
-      .catch((error) => setError(error instanceof Error ? error.message : "EXTRA analytics failed."))
+      .catch((error) => setError(error instanceof Error ? error.message : "Extra analytics failed."))
       .finally(() => {
         requestedExtra.current = false;
       });
@@ -91,10 +91,10 @@ export function ExtraWorkspace() {
       .then(setExtraAiInsight)
       .catch(() =>
         setExtraAiInsight({
-          summary: "EXTRA AI interpretation is unavailable. The advanced statistical modules remain available.",
+          summary: "Extra AI interpretation is unavailable. The advanced statistical modules remain available.",
           trends: [],
           instructionalFocus: [],
-          cautions: ["AI did not return a usable EXTRA summary."],
+          cautions: ["AI did not return a usable Extra summary."],
           chartSuggestions: [],
         }),
       );
@@ -119,7 +119,7 @@ export function ExtraWorkspace() {
   if (!extraAnalytics || !filtered) {
     return (
       <section className="rounded-lg border border-[#263238] bg-[#101418] p-6 text-[#dbe7e4]">
-        <p className="text-sm font-semibold uppercase tracking-normal text-[#20a39e]">EXTRA</p>
+        <p className="text-sm font-semibold uppercase tracking-normal text-[#20a39e]">Extra</p>
         <h2 className="mt-2 text-2xl font-semibold">Building advanced classroom intelligence.</h2>
         <div className="mt-5 h-2 rounded bg-[#263238]">
           <div className="h-2 w-2/3 animate-pulse rounded bg-[#20a39e]" />
@@ -133,7 +133,7 @@ export function ExtraWorkspace() {
       <div className="terminal-grid border-b border-[#23323a] bg-[#101821]/95 p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-normal text-[#20c9bd]">EXTRA Advanced Intelligence</p>
+            <p className="text-sm font-semibold uppercase tracking-normal text-[#20c9bd]">Extra Advanced Intelligence</p>
             <h2 className="mt-2 max-w-4xl text-4xl font-semibold leading-tight text-white">Deep classroom performance layer</h2>
             <p className="mt-3 max-w-3xl text-base leading-7 text-[#bfccc9]">
               Relationship maps, curriculum coverage, volatility, assessment signals, and anonymous cohort archetypes.
@@ -377,23 +377,7 @@ function renderModule(
   }
 
   if (key === "progression") {
-    if (!extra.progression.points.length) {
-      return <NothingHere />;
-    }
-
-    return (
-      <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={extra.progression.points}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#263238" />
-          <XAxis dataKey="label" tick={{ fill: "#aebbb7", fontSize: 11 }} />
-          <YAxis tick={{ fill: "#aebbb7" }} domain={[0, 100]} />
-          <Tooltip contentStyle={{ background: "#101418", border: "1px solid #33424a" }} />
-          <Line dataKey="average" name="Average" stroke="#20a39e" strokeWidth={2} dot={false} />
-          <Line dataKey="rollingAverage" name="Rolling momentum" stroke="#f28c38" strokeWidth={2} dot />
-          <Line dataKey="volatility" name="Volatility" stroke="#d65f5f" strokeDasharray="5 5" dot={false} />
-        </LineChart>
-      </ResponsiveContainer>
-    );
+    return <ProgressionMomentum extra={extra} height={height} />;
   }
 
   if (key === "archetypes") {
@@ -490,6 +474,66 @@ function renderModule(
   );
 }
 
+function ProgressionMomentum({ extra, height }: { extra: ExtraAnalyticsResult; height: number }) {
+  const points = extra.progression.points;
+  if (points.length < 2) {
+    return <NothingHere />;
+  }
+
+  const first = points[0];
+  const latest = points[points.length - 1];
+  const change = latest.rollingAverage - first.rollingAverage;
+  const chartHeight = Math.max(220, height - 92);
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 md:grid-cols-3">
+        <ProgressionMetric label="Earlier" value={formatPercent(first.rollingAverage)} sublabel={first.label} />
+        <ProgressionMetric
+          label="Movement"
+          value={formatExtraChange(change)}
+          sublabel={extra.progression.direction.replace("_", " ")}
+          tone={extra.progression.direction}
+        />
+        <ProgressionMetric label="Latest" value={formatPercent(latest.rollingAverage)} sublabel={latest.label} />
+      </div>
+      <ResponsiveContainer width="100%" height={chartHeight}>
+        <LineChart data={points}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#263238" />
+          <XAxis dataKey="label" tick={{ fill: "#aebbb7", fontSize: 11 }} />
+          <YAxis tick={{ fill: "#aebbb7" }} domain={[0, 100]} />
+          <Tooltip contentStyle={{ background: "#101418", border: "1px solid #33424a" }} />
+          <Line dataKey="average" name="Average" stroke="#20a39e" strokeWidth={2} dot={false} />
+          <Line dataKey="rollingAverage" name="Rolling momentum" stroke="#f28c38" strokeWidth={2} dot />
+          <Line dataKey="volatility" name="Volatility" stroke="#d65f5f" strokeDasharray="5 5" dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ProgressionMetric({
+  label,
+  value,
+  sublabel,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sublabel: string;
+  tone?: ExtraAnalyticsResult["progression"]["direction"];
+}) {
+  return (
+    <div className="rounded-lg border border-[#263238] bg-[#0b1014]/80 p-3">
+      <div className="text-xs font-semibold uppercase tracking-normal text-[#7f918d]">{label}</div>
+      <div className="mt-1 text-2xl font-semibold" style={{ color: tone ? extraTrendColor(tone) : "#ffffff" }}>
+        {value}
+      </div>
+      <div className="mt-1 truncate text-xs text-[#aebbb7]">{sublabel}</div>
+    </div>
+  );
+}
+
 function CorrelationHeatmap({ extra }: { extra: ExtraAnalyticsResult }) {
   const nodes = extra.relationships.nodes.slice(0, 10);
   const matrix = new Map(extra.relationships.matrix.map((item) => [`${item.source}:${item.target}`, item.correlation]));
@@ -518,14 +562,19 @@ function CorrelationHeatmap({ extra }: { extra: ExtraAnalyticsResult }) {
             </div>
             {nodes.map((column) => {
               const value = matrix.get(`${row.id}:${column.id}`) ?? 0;
+              const isSelfComparison = row.id === column.id;
               return (
                 <div
                   key={`${row.id}-${column.id}`}
                   className="h-7 rounded text-center text-[10px] leading-7 text-white"
-                  title={`${row.id} x ${column.id}: ${value}`}
-                  style={{ background: correlationColor(value) }}
+                  title={
+                    isSelfComparison
+                      ? `${row.id} compared with itself. Always 1.00 by definition.`
+                      : `${row.id} x ${column.id}: ${value}`
+                  }
+                  style={{ background: correlationColor(value, isSelfComparison) }}
                 >
-                  {Math.abs(value) >= 0.4 ? value : ""}
+                  {isSelfComparison ? "same" : Math.abs(value) >= 0.4 ? value : ""}
                 </div>
               );
             })}
@@ -618,7 +667,7 @@ function ExtraAiPanel() {
     <div className="border-t border-[#263238] bg-[#101418] p-5">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[#20a39e]" />
-        <h3 className="text-lg font-semibold">EXTRA AI Brief</h3>
+        <h3 className="text-lg font-semibold">Extra AI Brief</h3>
         <span className="rounded bg-[#173d3b] px-2 py-1 text-xs text-[#9ce2d7]">Aggregate only</span>
       </div>
       {extraAiInsight ? (
@@ -658,7 +707,11 @@ function filterExtra(extra: ExtraAnalyticsResult | undefined, focus: string) {
   };
 }
 
-function correlationColor(value: number) {
+function correlationColor(value: number, isSelfComparison = false) {
+  if (isSelfComparison) {
+    return "#6f5bd6";
+  }
+
   if (value >= 0.65) {
     return "#16726d";
   }
@@ -672,6 +725,26 @@ function correlationColor(value: number) {
     return "#c65d21";
   }
   return "#263238";
+}
+
+function formatExtraChange(value: number) {
+  return `${value > 0 ? "+" : ""}${formatNumber(value, 1)} pts`;
+}
+
+function extraTrendColor(direction: ExtraAnalyticsResult["progression"]["direction"]) {
+  if (direction === "improving") {
+    return "#20a39e";
+  }
+
+  if (direction === "declining") {
+    return "#d65f5f";
+  }
+
+  if (direction === "flat") {
+    return "#d4a72c";
+  }
+
+  return "#7f918d";
 }
 
 function readLayout(): ModuleKey[] {
