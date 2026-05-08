@@ -260,6 +260,11 @@ function buildChronologicalGroups(records: NormalizedRecord[]): [string, number[
     return Array.from(datedGroups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }
 
+  const progressionGroups = buildProgressionLabelGroups(records);
+  if (progressionGroups.length >= 2) {
+    return progressionGroups;
+  }
+
   const usableValues = records.map((record) => scoreToPercent(record.score, record.maxScore)).filter(Number.isFinite);
   if (usableValues.length < 2) {
     return [];
@@ -284,15 +289,82 @@ function trendDirection(points: TrendPoint[]): AnalyticsResult["trend"]["directi
   }
 
   const slope = linearSlope(points.map((point, index) => [index, point.average]));
-  if (slope > 0.75) {
+  const first = points[0];
+  const latest = points[points.length - 1];
+  const change = latest.average - first.average;
+
+  if (change >= 1.5 || (slope >= 0.45 && change > 0)) {
     return "improving";
   }
 
-  if (slope < -0.75) {
+  if (change <= -1.5 || (slope <= -0.45 && change < 0)) {
     return "declining";
   }
 
   return "flat";
+}
+
+function buildProgressionLabelGroups(records: NormalizedRecord[]): [string, number[]][] {
+  const groups = new Map<string, number[]>();
+  const orderedLabels: string[] = [];
+
+  for (const record of records) {
+    const label = progressionLabel(record);
+    const value = scoreToPercent(record.score, record.maxScore);
+    if (!label || !Number.isFinite(value)) {
+      continue;
+    }
+
+    if (!groups.has(label)) {
+      orderedLabels.push(label);
+    }
+    groups.set(label, [...(groups.get(label) ?? []), value]);
+  }
+
+  if (!hasOrderedProgressionLabels(orderedLabels)) {
+    return [];
+  }
+
+  return orderedLabels.map((label) => [label, groups.get(label) ?? []]);
+}
+
+function progressionLabel(record: NormalizedRecord) {
+  const label = safeLabel(record.assessment, record) ?? safeLabel(record.metricName, record) ?? safeLabel(record.term, record);
+  if (label) {
+    return label;
+  }
+
+  const topic = safeLabel(record.topic, record);
+  return topic && isProgressionLikeLabel(topic) ? topic : undefined;
+}
+
+function hasOrderedProgressionLabels(labels: string[]) {
+  const uniqueLabels = Array.from(new Set(labels.map((label) => label.trim()).filter(Boolean)));
+  if (uniqueLabels.length < 2) {
+    return false;
+  }
+
+  const progressionLikeCount = uniqueLabels.filter(isProgressionLikeLabel).length;
+  const orderedNumberCount = uniqueLabels.filter((label) => extractOrderNumber(label) !== null).length;
+  const hasPrePostPair = uniqueLabels.some((label) => /\bpre\b|өмнөх|эхний/i.test(label)) && uniqueLabels.some((label) => /\bpost\b|\bfinal\b|дараах|сүүлийн|эцсийн/i.test(label));
+
+  return progressionLikeCount >= 2 || orderedNumberCount >= 2 || hasPrePostPair;
+}
+
+function isProgressionLikeLabel(label: string) {
+  const normalized = label.toLowerCase();
+  const hasSequenceNumber = extractOrderNumber(normalized) !== null;
+  const hasProgressionWord =
+    /\b(quiz|test|exam|assessment|assignment|homework|week|unit|lesson|module|segment|part|section|term|semester|quarter|checkpoint|attempt|cycle|round)\b/i.test(normalized) ||
+    /(сорил|шалгалт|үнэлгээ|даалгавар|долоо хоног|хэсэг|нэгж|сэдэв|улирал|оролдлого|шат|модуль)/i.test(normalized);
+  const hasTemporalWord = /\b(pre|post|baseline|midterm|final|early|later|latest)\b/i.test(normalized) || /(өмнөх|дараах|эхний|сүүлийн|эцсийн|дундын)/i.test(normalized);
+
+  return (hasSequenceNumber && hasProgressionWord) || hasTemporalWord;
+}
+
+function extractOrderNumber(label: string) {
+  const match = label.match(/(?:^|[^\d])(\d{1,4})(?:[^\d]|$)/);
+  return match ? Number(match[1]) : null;
 }
 
 function buildTopicTrendSignals(records: NormalizedRecord[]) {

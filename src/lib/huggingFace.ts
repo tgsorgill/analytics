@@ -48,15 +48,16 @@ export async function requestAiInsight({ token, model, analytics, locale = "en" 
     body: JSON.stringify({
       model,
       stream: false,
-      temperature: 0.2,
-      max_tokens: 900,
+      temperature: 0,
+      max_tokens: 1200,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content:
             locale === "mn"
-              ? "You are a classroom analytics assistant for teachers, not an evaluator of children. Summarize aggregate findings only in Mongolian Cyrillic. Do not act as a psychologist, doctor, IQ evaluator, disciplinary authority, future predictor, or automated decision-maker. Do not analyze individual students, infer traits, or make grading, placement, diagnosis, discipline, retention, or eligibility decisions."
-              : "You are a classroom analytics assistant for teachers, not an evaluator of children. Summarize aggregate findings only. Do not act as a psychologist, doctor, IQ evaluator, disciplinary authority, future predictor, or automated decision-maker. Do not analyze individual students, infer traits, or make grading, placement, diagnosis, discipline, retention, or eligibility decisions.",
+              ? "You are a classroom analytics assistant for teachers, not an evaluator of children. Summarize aggregate findings only in natural Mongolian Cyrillic. Use teacher-friendly Mongolian phrases such as дундаж, ахиц, бууралт, анхаарах чиглэл, хязгаарлалт. Return valid JSON only, with no markdown and no text outside JSON. Do not act as a psychologist, doctor, IQ evaluator, disciplinary authority, future predictor, or automated decision-maker. Do not analyze individual students, infer traits, or make grading, placement, diagnosis, discipline, retention, or eligibility decisions."
+              : "You are a classroom analytics assistant for teachers, not an evaluator of children. Summarize aggregate findings only. Return valid JSON only, with no markdown and no text outside JSON. Do not act as a psychologist, doctor, IQ evaluator, disciplinary authority, future predictor, or automated decision-maker. Do not analyze individual students, infer traits, or make grading, placement, diagnosis, discipline, retention, or eligibility decisions.",
         },
         {
           role: "user",
@@ -77,7 +78,7 @@ export async function requestAiInsight({ token, model, analytics, locale = "en" 
     throw new Error("Hugging Face returned an empty response.");
   }
 
-  return parseAiInsight(text);
+  return parseAiInsight(text, locale);
 }
 
 export async function requestExtraAiInsight({ token, model, extraAnalytics, locale = "en" }: ExtraAiRequest): Promise<AiInsight> {
@@ -90,15 +91,16 @@ export async function requestExtraAiInsight({ token, model, extraAnalytics, loca
     body: JSON.stringify({
       model,
       stream: false,
-      temperature: 0.2,
-      max_tokens: 950,
+      temperature: 0,
+      max_tokens: 1200,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content:
             locale === "mn"
-              ? "You explain advanced aggregate classroom analytics for teachers in Mongolian Cyrillic. You never diagnose, evaluate children, infer traits, predict futures, criticize teacher quality, assign blame, or make automated decisions."
-              : "You explain advanced aggregate classroom analytics for teachers. You never diagnose, evaluate children, infer traits, predict futures, criticize teacher quality, assign blame, or make automated decisions.",
+              ? "You explain advanced aggregate classroom analytics for teachers in natural Mongolian Cyrillic. Return valid JSON only, with no markdown and no text outside JSON. You never diagnose, evaluate children, infer traits, predict futures, criticize teacher quality, assign blame, or make automated decisions."
+              : "You explain advanced aggregate classroom analytics for teachers. Return valid JSON only, with no markdown and no text outside JSON. You never diagnose, evaluate children, infer traits, predict futures, criticize teacher quality, assign blame, or make automated decisions.",
         },
         {
           role: "user",
@@ -118,7 +120,7 @@ export async function requestExtraAiInsight({ token, model, extraAnalytics, loca
     throw new Error("Hugging Face returned an empty Extra response.");
   }
 
-  return parseAiInsight(text);
+  return parseAiInsight(text, locale);
 }
 
 export async function requestAiColumnMappings({

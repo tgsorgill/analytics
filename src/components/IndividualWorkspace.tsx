@@ -116,8 +116,8 @@ export function IndividualWorkspace() {
         </div>
       </div>
 
-      <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
-        <aside className="metric-panel interactive-panel min-w-0 overflow-hidden p-4">
+      <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] xl:items-start">
+        <aside className="metric-panel interactive-panel flex min-h-[520px] min-w-0 flex-col overflow-hidden p-4 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] xl:max-h-[calc(100vh-3rem)]">
           <div className="mb-4 flex items-center gap-2 font-semibold">
             <Filter className="h-4 w-4 text-[#16726d]" />
             {t(locale, "individual.find")}
@@ -142,7 +142,7 @@ export function IndividualWorkspace() {
             <FilterSelect label={t(locale, "individual.trendFilter")} value={trend} onChange={setTrend} options={trendOptions()} locale={locale} />
           </div>
 
-          <div className="scrollbar-stable mt-4 max-h-[620px] overflow-y-auto overflow-x-hidden pr-1">
+          <div className="scrollbar-stable mt-4 min-h-[220px] flex-1 overflow-y-auto overflow-x-hidden pr-1">
             <div className="grid min-w-0 gap-2">
               {filteredStudents.map((student) => (
                 <button
@@ -509,8 +509,9 @@ function buildTrend(records: NormalizedRecord[]): StudentTrend {
   const first = points[0];
   const latest = points[points.length - 1];
   const change = round(latest.average - first.average, 1);
+  const slope = linearSlope(points.map((point, index) => [index, point.average]));
   return {
-    direction: change > 2 ? "improving" : change < -2 ? "declining" : "flat",
+    direction: change >= 1.5 || (slope >= 0.45 && change > 0) ? "improving" : change <= -1.5 || (slope <= -0.45 && change < 0) ? "declining" : "flat",
     change,
     firstAverage: first.average,
     latestAverage: latest.average,
@@ -534,6 +535,11 @@ function chronologicalGroups(records: NormalizedRecord[]): [string, number[]][] 
     return Array.from(dated.entries()).sort(([a], [b]) => a.localeCompare(b));
   }
 
+  const progressionGroups = progressionGroupsFromLabels(records);
+  if (progressionGroups.length >= 2) {
+    return progressionGroups;
+  }
+
   const values = records.map((record) => scoreToPercent(record.score, record.maxScore)).filter(Number.isFinite);
   if (values.length < 2) {
     return [];
@@ -549,6 +555,67 @@ function chronologicalGroups(records: NormalizedRecord[]): [string, number[]][] 
   });
 
   return Array.from(buckets.entries());
+}
+
+function progressionGroupsFromLabels(records: NormalizedRecord[]): [string, number[]][] {
+  const groups = new Map<string, number[]>();
+  const orderedLabels: string[] = [];
+
+  for (const record of records) {
+    const label = progressionLabel(record);
+    const value = scoreToPercent(record.score, record.maxScore);
+    if (!label || !Number.isFinite(value)) {
+      continue;
+    }
+
+    if (!groups.has(label)) {
+      orderedLabels.push(label);
+    }
+    groups.set(label, [...(groups.get(label) ?? []), value]);
+  }
+
+  if (!hasOrderedProgressionLabels(orderedLabels)) {
+    return [];
+  }
+
+  return orderedLabels.map((label) => [label, groups.get(label) ?? []]);
+}
+
+function progressionLabel(record: NormalizedRecord) {
+  const label = record.assessment?.trim() || record.metricName?.trim() || record.term?.trim();
+  if (label && label !== record.studentName?.trim() && label !== record.studentId?.trim()) {
+    return label;
+  }
+
+  const topic = record.topic?.trim();
+  return topic && topic !== record.studentName?.trim() && topic !== record.studentId?.trim() && isProgressionLikeLabel(topic) ? topic : undefined;
+}
+
+function hasOrderedProgressionLabels(labels: string[]) {
+  const uniqueLabels = Array.from(new Set(labels.map((label) => label.trim()).filter(Boolean)));
+  if (uniqueLabels.length < 2) {
+    return false;
+  }
+
+  const progressionLikeCount = uniqueLabels.filter(isProgressionLikeLabel).length;
+  const orderedNumberCount = uniqueLabels.filter((label) => extractOrderNumber(label) !== null).length;
+  const hasPrePostPair = uniqueLabels.some((label) => /\bpre\b|өмнөх|эхний/i.test(label)) && uniqueLabels.some((label) => /\bpost\b|\bfinal\b|дараах|сүүлийн|эцсийн/i.test(label));
+  return progressionLikeCount >= 2 || orderedNumberCount >= 2 || hasPrePostPair;
+}
+
+function isProgressionLikeLabel(label: string) {
+  const normalized = label.toLowerCase();
+  const hasSequenceNumber = extractOrderNumber(normalized) !== null;
+  const hasProgressionWord =
+    /\b(quiz|test|exam|assessment|assignment|homework|week|unit|lesson|module|segment|part|section|term|semester|quarter|checkpoint|attempt|cycle|round)\b/i.test(normalized) ||
+    /(сорил|шалгалт|үнэлгээ|даалгавар|долоо хоног|хэсэг|нэгж|сэдэв|улирал|оролдлого|шат|модуль)/i.test(normalized);
+  const hasTemporalWord = /\b(pre|post|baseline|midterm|final|early|later|latest)\b/i.test(normalized) || /(өмнөх|дараах|эхний|сүүлийн|эцсийн|дундын)/i.test(normalized);
+  return (hasSequenceNumber && hasProgressionWord) || hasTemporalWord;
+}
+
+function extractOrderNumber(label: string) {
+  const match = label.match(/(?:^|[^\d])(\d{1,4})(?:[^\d]|$)/);
+  return match ? Number(match[1]) : null;
 }
 
 function buildDistribution(values: number[]) {
@@ -646,6 +713,20 @@ function standardDeviation(values: number[]) {
   }
   const average = mean(values);
   return Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length);
+}
+
+function linearSlope(points: number[][]) {
+  const n = points.length;
+  if (n < 2) {
+    return 0;
+  }
+
+  const sumX = points.reduce((sum, [x]) => sum + x, 0);
+  const sumY = points.reduce((sum, [, y]) => sum + y, 0);
+  const sumXY = points.reduce((sum, [x, y]) => sum + x * y, 0);
+  const sumX2 = points.reduce((sum, [x]) => sum + x * x, 0);
+  const denominator = n * sumX2 - sumX ** 2;
+  return denominator ? (n * sumXY - sumX * sumY) / denominator : 0;
 }
 
 function masteryRate(values: number[]) {

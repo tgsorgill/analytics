@@ -5,7 +5,7 @@ export function buildAiPrompt(analytics: AnalyticsResult, locale: Locale = "en")
   const payload = sanitizeAnalyticsForAi(analytics);
   const responseLanguage =
     locale === "mn"
-      ? "Return every natural-language value in Mongolian Cyrillic. Keep JSON keys exactly in English."
+      ? "Return every natural-language value in natural Mongolian Cyrillic. Keep JSON keys exactly in English."
       : "Return every natural-language value in English. Keep JSON keys exactly in English.";
 
   return [
@@ -31,6 +31,9 @@ export function buildAiPrompt(analytics: AnalyticsResult, locale: Locale = "en")
     "- Focus on classroom patterns, instructional next steps, limitations, and questions a teacher might investigate.",
     "- AI may suggest chart types, but must not generate visuals.",
     `- ${responseLanguage}`,
+    "- Return JSON only. Do not wrap it in markdown. Do not include prose before or after the JSON.",
+    "- Do not put a JSON string inside the summary field. The summary field must be a teacher-readable paragraph.",
+    "- Keep every text value concise so the JSON is complete and parseable.",
     "- Return compact JSON with this exact shape:",
     JSON.stringify(
       {
@@ -107,11 +110,14 @@ export function buildExtraAiPrompt(extraAnalytics: ExtraAnalyticsResult, locale:
     locale === "mn"
       ? "- Return every natural-language value in Mongolian Cyrillic. Keep JSON keys exactly in English."
       : "- Return every natural-language value in English. Keep JSON keys exactly in English.",
+    "- Return JSON only. Do not wrap it in markdown. Do not include prose before or after the JSON.",
+    "- Do not put a JSON string inside the summary field. The summary field must be a teacher-readable paragraph.",
+    "- Keep every text value concise so the JSON is complete and parseable.",
     "- Return compact JSON with keys: summary, trends, instructionalFocus, cautions, chartSuggestions.",
   ].join("\n");
 }
 
-export function parseAiInsight(text: string): AiInsight {
+export function parseAiInsight(text: string, locale: Locale = "en"): AiInsight {
   const maybeJson = extractJson(text);
   if (maybeJson) {
     try {
@@ -126,11 +132,12 @@ export function parseAiInsight(text: string): AiInsight {
         rawText: text,
       };
     } catch {
-      return fallbackInsight(text);
+      const salvaged = salvageInsight(text, locale);
+      return salvaged ?? fallbackInsight(text, locale);
     }
   }
 
-  return fallbackInsight(text);
+  return fallbackInsight(text, locale);
 }
 
 function sanitizeTopic(topic: AnalyticsResult["topicStats"][number]) {
@@ -169,15 +176,201 @@ function extractJson(text: string) {
   return null;
 }
 
-function fallbackInsight(text: string): AiInsight {
+function salvageInsight(text: string, locale: Locale): AiInsight | null {
+  const summary = extractStringField(text, "summary");
+  const trends = extractArrayField(text, "trends");
+  const instructionalFocus = extractArrayField(text, "instructionalFocus");
+  const cautions = extractArrayField(text, "cautions");
+  const chartSuggestions = salvageChartSuggestions(text);
+
+  if (!summary && !trends.length && !instructionalFocus.length && !cautions.length && !chartSuggestions.length) {
+    return null;
+  }
+
   return {
-    summary: toDisplayText(text),
+    summary: summary || localizedIncompleteSummary(locale),
+    trends,
+    instructionalFocus,
+    cautions: [...cautions, localizedJsonWarning(locale)],
+    chartSuggestions,
+    rawText: text,
+  };
+}
+
+function fallbackInsight(text: string, locale: Locale): AiInsight {
+  const jsonLike = text.trim().startsWith("{") || text.includes('"summary"');
+
+  return {
+    summary: jsonLike ? localizedIncompleteSummary(locale) : toDisplayText(text),
     trends: [],
     instructionalFocus: [],
-    cautions: ["AI output was not valid JSON. Review the narrative before sharing."],
+    cautions: [localizedJsonWarning(locale)],
     chartSuggestions: [],
     rawText: text,
   };
+}
+
+function extractStringField(text: string, key: string) {
+  const keyIndex = text.indexOf(`"${key}"`);
+  if (keyIndex < 0) {
+    return "";
+  }
+
+  const colonIndex = text.indexOf(":", keyIndex);
+  if (colonIndex < 0) {
+    return "";
+  }
+
+  let cursor = colonIndex + 1;
+  while (cursor < text.length && /\s/.test(text[cursor])) {
+    cursor += 1;
+  }
+
+  if (text[cursor] !== '"') {
+    return "";
+  }
+
+  cursor += 1;
+  let escaped = false;
+  let raw = "";
+
+  for (; cursor < text.length; cursor += 1) {
+    const char = text[cursor];
+    if (escaped) {
+      raw += `\\${char}`;
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      return sanitizeInlineText(parseJsonString(raw));
+    }
+
+    raw += char;
+  }
+
+  return sanitizeInlineText(parseJsonString(raw));
+}
+
+function extractArrayField(text: string, key: string) {
+  const keyIndex = text.indexOf(`"${key}"`);
+  if (keyIndex < 0) {
+    return [];
+  }
+
+  const arrayStart = text.indexOf("[", keyIndex);
+  if (arrayStart < 0) {
+    return [];
+  }
+
+  const arrayEnd = findMatchingBracket(text, arrayStart);
+  const source = arrayEnd > arrayStart ? text.slice(arrayStart, arrayEnd + 1) : text.slice(arrayStart);
+
+  try {
+    const parsed = JSON.parse(source) as unknown;
+    return toDisplayList(parsed);
+  } catch {
+    return extractQuotedStrings(source).map(toDisplayText).filter(Boolean);
+  }
+}
+
+function salvageChartSuggestions(text: string): AiInsight["chartSuggestions"] {
+  const keyIndex = text.indexOf('"chartSuggestions"');
+  if (keyIndex < 0) {
+    return [];
+  }
+
+  const arrayStart = text.indexOf("[", keyIndex);
+  if (arrayStart < 0) {
+    return [];
+  }
+
+  const arrayEnd = findMatchingBracket(text, arrayStart);
+  if (arrayEnd <= arrayStart) {
+    return [];
+  }
+
+  try {
+    return toChartSuggestions(JSON.parse(text.slice(arrayStart, arrayEnd + 1)));
+  } catch {
+    return [];
+  }
+}
+
+function findMatchingBracket(text: string, start: number) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === "[") {
+      depth += 1;
+    }
+
+    if (char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function extractQuotedStrings(source: string) {
+  const values: string[] = [];
+  const pattern = /"((?:\\.|[^"\\])*)"/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(source)) !== null) {
+    values.push(parseJsonString(match[1]));
+  }
+  return values;
+}
+
+function parseJsonString(raw: string) {
+  try {
+    return JSON.parse(`"${raw}"`) as string;
+  } catch {
+    return raw.replace(/\\"/g, '"').replace(/\\n/g, " ").replace(/\\t/g, " ");
+  }
+}
+
+function localizedIncompleteSummary(locale: Locale) {
+  return locale === "mn"
+    ? "AI хураангуй бүрэн уншигдаагүй байна. Доорх анхааруулгыг шалгаад, шаардлагатай бол дахин үүсгэнэ үү."
+    : "The AI summary was incomplete. Review the caution below, then regenerate if needed.";
+}
+
+function localizedJsonWarning(locale: Locale) {
+  return locale === "mn"
+    ? "AI хариу бүрэн хүчинтэй JSON биш байсан. Хуваалцахаас өмнө товч тайлбарыг шалгана уу."
+    : "AI output was not valid JSON. Review the narrative before sharing.";
 }
 
 function toDisplayList(value: unknown): string[] {

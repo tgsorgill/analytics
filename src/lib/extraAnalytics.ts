@@ -124,9 +124,10 @@ function buildProgression(records: NormalizedRecord[]): ExtraAnalyticsResult["pr
   });
 
   const slope = points.length > 1 ? linearSlope(points.map((point, index) => [index, point.rollingAverage])) : 0;
+  const change = points.length > 1 ? points[points.length - 1].rollingAverage - points[0].rollingAverage : 0;
   return {
     points,
-    direction: points.length < 2 ? "insufficient_data" : slope > 0.55 ? "improving" : slope < -0.55 ? "declining" : "flat",
+    direction: points.length < 2 ? "insufficient_data" : change >= 1.5 || (slope >= 0.45 && change > 0) ? "improving" : change <= -1.5 || (slope <= -0.45 && change < 0) ? "declining" : "flat",
     instabilityIndex: round(mean(points.map((point) => point.volatility)), 1),
   };
 }
@@ -314,6 +315,11 @@ function groupByTime(records: NormalizedRecord[]) {
     return datedGroups;
   }
 
+  const progressionGroups = groupByProgressionLabel(records);
+  if (progressionGroups.length >= 2) {
+    return progressionGroups;
+  }
+
   const bucketCount = Math.min(8, Math.max(2, Math.ceil(records.length / 25)));
   const bucketSize = Math.max(1, Math.ceil(records.length / bucketCount));
   const buckets = new Map<string, NormalizedRecord[]>();
@@ -324,6 +330,68 @@ function groupByTime(records: NormalizedRecord[]) {
   });
 
   return Array.from(buckets.entries()).map(([label, bucketRecords]) => toGroup(label, bucketRecords));
+}
+
+function groupByProgressionLabel(records: NormalizedRecord[]) {
+  const groups = new Map<string, NormalizedRecord[]>();
+  const orderedLabels: string[] = [];
+
+  records.forEach((record) => {
+    const label = progressionLabel(record);
+    if (!label) {
+      return;
+    }
+
+    if (!groups.has(label)) {
+      orderedLabels.push(label);
+    }
+    groups.set(label, [...(groups.get(label) ?? []), record]);
+  });
+
+  if (!hasOrderedProgressionLabels(orderedLabels)) {
+    return [];
+  }
+
+  return orderedLabels.map((label) => toGroup(label, groups.get(label) ?? []));
+}
+
+function progressionLabel(record: NormalizedRecord) {
+  const label = safeLabel(record.assessment, record) ?? safeLabel(record.metricName, record) ?? safeLabel(record.term, record);
+  if (label) {
+    return label;
+  }
+
+  const topic = safeLabel(record.topic, record);
+  return topic && isProgressionLikeLabel(topic) ? topic : undefined;
+}
+
+function hasOrderedProgressionLabels(labels: string[]) {
+  const uniqueLabels = Array.from(new Set(labels.map((label) => label.trim()).filter(Boolean)));
+  if (uniqueLabels.length < 2) {
+    return false;
+  }
+
+  const progressionLikeCount = uniqueLabels.filter(isProgressionLikeLabel).length;
+  const orderedNumberCount = uniqueLabels.filter((label) => extractOrderNumber(label) !== null).length;
+  const hasPrePostPair = uniqueLabels.some((label) => /\bpre\b|өмнөх|эхний/i.test(label)) && uniqueLabels.some((label) => /\bpost\b|\bfinal\b|дараах|сүүлийн|эцсийн/i.test(label));
+
+  return progressionLikeCount >= 2 || orderedNumberCount >= 2 || hasPrePostPair;
+}
+
+function isProgressionLikeLabel(label: string) {
+  const normalized = label.toLowerCase();
+  const hasSequenceNumber = extractOrderNumber(normalized) !== null;
+  const hasProgressionWord =
+    /\b(quiz|test|exam|assessment|assignment|homework|week|unit|lesson|module|segment|part|section|term|semester|quarter|checkpoint|attempt|cycle|round)\b/i.test(normalized) ||
+    /(сорил|шалгалт|үнэлгээ|даалгавар|долоо хоног|хэсэг|нэгж|сэдэв|улирал|оролдлого|шат|модуль)/i.test(normalized);
+  const hasTemporalWord = /\b(pre|post|baseline|midterm|final|early|later|latest)\b/i.test(normalized) || /(өмнөх|дараах|эхний|сүүлийн|эцсийн|дундын)/i.test(normalized);
+
+  return (hasSequenceNumber && hasProgressionWord) || hasTemporalWord;
+}
+
+function extractOrderNumber(label: string) {
+  const match = label.match(/(?:^|[^\d])(\d{1,4})(?:[^\d]|$)/);
+  return match ? Number(match[1]) : null;
 }
 
 function groupBy(records: NormalizedRecord[], labeler: (record: NormalizedRecord, index: number) => string) {
