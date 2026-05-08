@@ -150,7 +150,7 @@ export function buildDeterministicAiInsight(analytics: AnalyticsResult, locale: 
 
   if (locale === "mn") {
     return {
-      summary: `${analytics.recordCount.toLocaleString()} нэгтгэсэн бичлэг дээр ангийн дундаж ${pct(analytics.overview.mean)} байна. ${weak.length ? `Анхаарах чиглэл: ${joinList(weak)}.` : ""} ${strong.length ? `Харьцангуй хүчтэй чиглэл: ${joinList(strong)}.` : ""}`.trim(),
+      summary: `${analytics.recordCount.toLocaleString()} нэгтгэсэн рекорд дээр ангийн дундаж ${pct(analytics.overview.mean)} байна. ${weak.length ? `Анхаарах чиглэл: ${joinList(weak)}.` : ""} ${strong.length ? `Харьцангуй хүчтэй чиглэл: ${joinList(strong)}.` : ""}`.trim(),
       trends: [
         hasTrend
           ? `Ерөнхий хөдөлгөөн ${localizeDirection(overall.direction, locale)}: ${pct(overall.firstAverage)}-аас ${pct(overall.latestAverage)} болж ${signed(overall.change)} өөрчлөгдсөн.`
@@ -208,7 +208,7 @@ export function buildDeterministicExtraAiInsight(extraAnalytics: ExtraAnalyticsR
 
   if (locale === "mn") {
     return {
-      summary: `Extra ажлын талбар ${extraAnalytics.recordCount.toLocaleString()} бичлэг дээр хамралт, ахиц, хамаарлын дохиог нэгтгэлээр харуулж байна. Хамралтын тэнцвэргүй индекс ${fixed(extraAnalytics.coverage.imbalanceIndex)}, тогтворгүй байдал ${fixed(extraAnalytics.progression.instabilityIndex)} байна.`,
+      summary: `Extra ажлын талбар ${extraAnalytics.recordCount.toLocaleString()} рекорд дээр хамралт, ахиц, хамаарлын дохиог нэгтгэлээр харуулж байна. Хамралтын тэнцвэргүй индекс ${fixed(extraAnalytics.coverage.imbalanceIndex)}, тогтворгүй байдал ${fixed(extraAnalytics.progression.instabilityIndex)} байна.`,
       trends: [
         extraAnalytics.progression.direction === "insufficient_data"
           ? "Ахицын хөдөлгөөн гаргахад мэдээлэл дутуу байна."

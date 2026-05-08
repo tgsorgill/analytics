@@ -511,16 +511,16 @@ const pdfCopy = {
     classroomReportTitle: "Ангийн аналитикийн тайлан",
     extraReportTitle: "Extra ангийн гүн аналитикийн тайлан",
     generatedLocally: "Дотооддоо үүсгэсэн",
-    normalizedRecords: "Нэгтгэсэн бичлэг",
-    extraNormalizedRecords: "Extra нэгтгэсэн бичлэг",
+    normalizedRecords: "Нэгтгэсэн рекорд",
+    extraNormalizedRecords: "Extra нэгтгэсэн рекорд",
     meanScore: "Дундаж оноо",
     middleScore: "Голын оноо",
     atOrAbove80: "80%-аас дээш",
     stdDevFormula: "100 - стандарт хазайлт",
     fromEarliestToLatest: "эхнээс сүүл хүртэл",
-    recordsLower: "бичлэг",
+    recordsLower: "рекорд",
     categoryPerformanceSubtitle: "Детерминистик дундаж оноогоор эрэмбэлсэн ангийн гол ангиллууд.",
-    scoreDistributionSubtitle: "Бичлэгүүдийг 0-100 хэмжүүрээр бүлэглэнэ. Дүрслэлийн дээд хязгаар 100 байна.",
+    scoreDistributionSubtitle: "Рекордуудыг 0-100 хэмжүүрээр бүлэглэнэ. Дүрслэлийн дээд хязгаар 100 байна.",
     masteryBreakdownSubtitle: "Самбарын бүлэглэлд ашигласан нэргүй нэгтгэсэн түвшний зурвасууд.",
     trendOverTimeSubtitle: "Огноо эсвэл дараалсан үнэлгээний шошгоор бүлэглэсэн ангийн дундаж.",
     trendSignals: "Чиг хандлагын дохио",
@@ -530,7 +530,7 @@ const pdfCopy = {
     privacyFirstExport: "Нууцлал хамгаалсан экспорт",
     privacyOverviewMsg: "Бүх детерминистик аналитик браузер дотор тооцоологдсон. AI текст байвал зөвхөн нэгтгэсэн үр дүнг ашигласан.",
     privacyExtraMsg: "Дэвшилтэт нэгтгэсэн аналитик браузер дотор тооцоологдсон. AI текст байвал зөвхөн Extra үр дүнг ашигласан.",
-    recordsIncluded: "нэгтгэсэн бичлэг энэ тайланд орсон.",
+    recordsIncluded: "нэгтгэсэн рекорд энэ тайланд орсон.",
     trendMomentum: "Чиг хандлагын хөдөлгөөн",
     trendMomentumSubtitle: "Зөвхөн одоогийн түвшин биш, эхнээс сүүл хүртэлх хөдөлгөөнийг онцолно.",
     overallMovement: "Ерөнхий хөдөлгөөн",
@@ -565,17 +565,17 @@ const pdfCopy = {
     diversity: "олон янз",
     concentration: "төвлөрөл",
     studentReportTitle: "Сурагчийн хамралтын тайлан",
-    studentRecordGroup: "Сурагчийн бичлэгийн бүлэг",
+    studentRecordGroup: "Сурагчийн рекордын бүлэг",
     individualPrivacyMsg: "Энэ тайлан багшийн браузер дотор үүснэ. Зөвхөн детерминист сурагчийн хамралтыг харуулна, AI дүгнэлт ороогүй.",
     studentProgression: "Сурагчийн ахиц",
-    studentProgressionSubtitle: "Хөдөлгөөн нь огноотой бичлэг, дараалсан үнэлгээ эсвэл огноо байхгүй үед бичлэгийн дарааллаас тооцогдоно.",
+    studentProgressionSubtitle: "Хөдөлгөөн нь огноотой рекорд, дараалсан үнэлгээ эсвэл огноо байхгүй үед рекордын дарааллаас тооцогдоно.",
     studentCoverageTitle: "Сурагчийн детерминист хамралт",
     studentCoverageSubtitle: "Хамралтын хэсгүүд нь нэгтгэсэн ангилал, сэдэв, чадвар, стандарт эсвэл бусад mapped хэмжээсээс тооцогдоно.",
     studentSubjectTitle: "Хичээл / улирлын хамралт",
     studentSubjectSubtitle: "Олон бүлэг байгаа үед хичээл болон улирлын бүлэглэлийг харуулна.",
-    studentDistributionSubtitle: "Онооны бичлэгүүдийг ойлгомжтой тайлангийн тулд 0-100 тархалтын бүлгүүдэд хязгаарлана.",
+    studentDistributionSubtitle: "Онооны рекордуудыг ойлгомжтой тайлангийн тулд 0-100 тархалтын бүлгүүдэд хязгаарлана.",
     deterministicCoverage: "Детерминист хамралтын дохио",
-    studentRecentSubtitle: "Энэ сурагчийн тайланд ашигласан сүүлийн нэгтгэсэн бичлэгүүд.",
+    studentRecentSubtitle: "Энэ сурагчийн тайланд ашигласан сүүлийн нэгтгэсэн рекордууд.",
   },
 } as const;
 
@@ -651,8 +651,8 @@ function createReportWriter(doc: jsPDF, fileName: string, locale: Locale) {
     });
   }
 
-  function section(title: string, subtitle?: string) {
-    addPageIfNeeded(62);
+  function section(title: string, subtitle?: string, keepWithNext = 430) {
+    addPageIfNeeded(keepWithNext);
     y += y === page.margin ? 0 : 8;
     setFill(palette.accent);
     doc.rect(page.margin, y - 2, 4, 21, "F");

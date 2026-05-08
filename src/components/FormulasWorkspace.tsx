@@ -287,13 +287,13 @@ function localizeFormulaText(value: string, locale: "en" | "mn") {
 
   const copy: Record<string, string> = {
     "Records below the classroom proficiency band. This is a statistical grouping only, not a student label.":
-      "Ангийн чадварын бүсээс доогуур бичлэгүүд. Энэ нь зөвхөн статистик бүлэглэл бөгөөд сурагчийн шошго биш.",
+      "Ангийн чадварын бүсээс доогуур рекордууд. Энэ нь зөвхөн статистик бүлэглэл бөгөөд сурагчийн шошго биш.",
     "Records moving toward proficiency, useful for seeing where reteaching may help the whole group.":
-      "Чадварт ойртож буй бичлэгүүд. Бүх бүлэгт дахин заах хэрэгтэй хэсгийг харахад тустай.",
+      "Чадварт ойртож буй рекордууд. Бүх бүлэгт дахин заах хэрэгтэй хэсгийг харахад тустай.",
     "Records in the expected performance band for the dashboard's deterministic breakdown.":
-      "Самбарын детерминистик задаргааны хүлээгдэж буй гүйцэтгэлийн бүсэд байгаа бичлэгүүд.",
+      "Самбарын детерминистик задаргааны хүлээгдэж буй гүйцэтгэлийн бүсэд байгаа рекордууд.",
     "Records in the highest local performance band. Scores above 100 are clamped only for distribution charts.":
-      "Дотоод гүйцэтгэлийн хамгийн өндөр бүсийн бичлэгүүд. 100-аас дээш оноог зөвхөн тархалтын графикт 100 хүртэл хязгаарлана.",
+      "Дотоод гүйцэтгэлийн хамгийн өндөр бүсийн рекордууд. 100-аас дээш оноог зөвхөн тархалтын графикт 100 хүртэл хязгаарлана.",
     "Mastery Rate": "Эзэмшлийн хувь",
     "Average": "Дундаж",
     "Median": "Медиан",
@@ -322,16 +322,16 @@ function localizeFormulaText(value: string, locale: "en" | "mn") {
   }
 
   if (value.includes("mastery threshold")) {
-    return "Оноо бүрийг 0-100 хувь болгон хөрвүүлсний дараа эзэмшлийн босго буюу түүнээс дээш бичлэгийн хувь.";
+    return "Оноо бүрийг 0-100 хувь болгон хөрвүүлсний дараа эзэмшлийн босго буюу түүнээс дээш рекордын хувь.";
   }
   if (value.includes("mean classroom score")) {
-    return "Сонгосон нэгтгэсэн бичлэгүүдийн ангийн дундаж оноо.";
+    return "Сонгосон нэгтгэсэн рекордуудын ангийн дундаж оноо.";
   }
   if (value.includes("middle score")) {
     return "Эрэмбэлсэн онооны гол утга. Хоёр гол утгатай бол тэдгээрийн дунджийг авна.";
   }
   if (value.includes("spread measure")) {
-    return "Тархалтын хэмжүүр. Их байх тусам бичлэгүүдийн оноо илүү өөр өөр байна.";
+    return "Тархалтын хэмжүүр. Их байх тусам рекордуудын оноо илүү өөр өөр байна.";
   }
   if (value.includes("statistical alignment")) {
     return "Нэргүй бүлэг эсвэл оруулсан дарааллын хэсгүүдээр ангиллын хэв маягийг харьцуулна. Зөвхөн статистик нийцлийг хэлнэ, шалтгаан биш.";

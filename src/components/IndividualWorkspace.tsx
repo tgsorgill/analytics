@@ -166,7 +166,7 @@ export function IndividualWorkspace() {
                   </div>
                   <div className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-xs text-[#6b746f]">
                     <span className="min-w-0 truncate">
-                      {student.count} {locale === "mn" ? "бичлэг" : "records"}
+                      {student.count} {locale === "mn" ? "рекорд" : "records"}
                     </span>
                     <span className={cn("max-w-[52%] shrink-0 truncate text-right", student.trend.direction === "declining" ? "text-[#b63f3f]" : "text-[#16726d]")}>
                       {localizeDirection(student.trend.direction, locale)}
@@ -363,7 +363,7 @@ function GroupList({ title, items, locale, tone }: { title: string; items: Group
               </div>
               <div className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-xs text-[#6b746f]">
                 <span className="min-w-0 truncate">
-                  {item.count} {locale === "mn" ? "бичлэг" : "records"}
+                  {item.count} {locale === "mn" ? "рекорд" : "records"}
                 </span>
                 <span className="shrink-0 text-right">
                   {t(locale, "common.mastery")} {formatPercent(item.masteryRate)}

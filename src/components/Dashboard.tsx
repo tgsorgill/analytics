@@ -518,7 +518,7 @@ function CategoryHeatmap({ analytics, locale }: { analytics: AnalyticsResult; lo
             <div className="truncate font-semibold">{localizeLabel(topic.topic, locale)}</div>
             <div className="mt-2 text-xl font-semibold">{formatPercent(topic.average)}</div>
             <div className="mt-1 text-xs text-[#3f4642]">
-              {topic.count} {locale === "mn" ? "бичлэг" : "records"}
+              {topic.count} {locale === "mn" ? "рекорд" : "records"}
             </div>
           </div>
         ))}

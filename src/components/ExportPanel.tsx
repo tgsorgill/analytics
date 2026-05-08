@@ -44,7 +44,7 @@ export function ExportPanel() {
     }
 
     if (!normalized?.records.length) {
-      throw new Error(locale === "mn" ? "Extra экспортод ашиглах нэгтгэсэн бичлэг алга." : "No normalized records are available for Extra export.");
+      throw new Error(locale === "mn" ? "Extra экспортод ашиглах нэгтгэсэн рекорд алга." : "No normalized records are available for Extra export.");
     }
 
     const computed = await computeExtraAnalyticsInWorker(normalized.records);
