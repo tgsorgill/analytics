@@ -13,11 +13,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Filter, Search, ShieldCheck, UserRound } from "lucide-react";
+import { Download, FileText, Filter, Search, ShieldCheck, UserRound } from "lucide-react";
+import { exportStudentCoveragePdf } from "@/lib/exporters";
 import { localizeDirection, localizeLabel, t, type Locale } from "@/lib/i18n";
 import { scoreToPercent } from "@/lib/score";
 import type { NormalizedRecord, TrendDirection } from "@/lib/types";
-import { cn, formatNumber, formatPercent, round } from "@/lib/utils";
+import { cn, downloadJson, formatNumber, formatPercent, round, safeFilename } from "@/lib/utils";
 import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 
 type StudentTrend = {
@@ -184,6 +185,9 @@ export function IndividualWorkspace() {
 }
 
 function StudentDetail({ student, locale }: { student: StudentStats; locale: Locale }) {
+  const { parsedCsv } = useAnalyticsStore();
+  const sourceName = parsedCsv?.fileName ?? "student-coverage";
+
   return (
     <div className="flex min-w-0 flex-col gap-5">
       <section className="metric-panel interactive-panel min-w-0 overflow-hidden p-5 sm:p-6">
@@ -193,9 +197,29 @@ function StudentDetail({ student, locale }: { student: StudentStats; locale: Loc
             <h3 className="mt-1 break-words text-3xl font-semibold">{student.label}</h3>
             <p className="mt-1 break-words text-sm text-[#5b635f]">{student.secondaryLabel}</p>
           </div>
-          <span className="w-fit max-w-full rounded px-3 py-2 text-sm font-semibold text-white" style={{ background: trendColor(student.trend.direction) }}>
-            {localizeDirection(student.trend.direction, locale)} | {formatSignedChange(student.trend.change)}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded border border-[#16726d] bg-[#16726d] px-3 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0f5a55] hover:shadow-md"
+              type="button"
+              aria-label={locale === "mn" ? "Сурагчийн детерминист хамралтын PDF татах" : "Export student-level deterministic coverage PDF"}
+              onClick={() => void exportStudentCoveragePdf(sourceName, student, locale)}
+            >
+              <FileText className="h-4 w-4" />
+              {locale === "mn" ? "PDF тайлан татах" : "Export PDF report"}
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded border border-[#bec8c0] bg-white px-3 py-2 text-sm font-semibold text-[#26302b] transition hover:-translate-y-0.5 hover:bg-[#f1f4f1] hover:shadow-md"
+              type="button"
+              aria-label={locale === "mn" ? "Сурагчийн детерминист хамралтын JSON татах" : "Export student-level deterministic coverage JSON"}
+              onClick={() => exportStudentCoverage(sourceName, student, locale)}
+            >
+              <Download className="h-4 w-4 text-[#16726d]" />
+              {locale === "mn" ? "Хамралтын JSON татах" : "Export coverage JSON"}
+            </button>
+            <span className="w-fit max-w-full rounded px-3 py-2 text-sm font-semibold text-white" style={{ background: trendColor(student.trend.direction) }}>
+              {localizeDirection(student.trend.direction, locale)} | {formatSignedChange(student.trend.change)}
+            </span>
+          </div>
         </div>
 
         <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
@@ -390,6 +414,39 @@ function FilterSelect({
       </select>
     </label>
   );
+}
+
+function exportStudentCoverage(fileName: string, student: StudentStats, locale: Locale) {
+  downloadJson(`${safeFilename(fileName)}-${safeFilename(student.label, "student")}-individual-coverage.json`, {
+    exportedAt: new Date().toISOString(),
+    privacy:
+      locale === "mn"
+        ? "Энэ экспорт нь багшийн браузер дотор үүссэн. AI хувь сурагчийн шинжилгээ хийгээгүй."
+        : "This export was created locally in the teacher's browser. No AI individual analysis was performed.",
+    workspace: locale === "mn" ? "Хувь хүн" : "Individual",
+    student: {
+      key: student.key,
+      label: student.label,
+      secondaryLabel: student.secondaryLabel,
+      recordCount: student.count,
+    },
+    deterministicStats: {
+      average: student.average,
+      median: student.median,
+      min: student.min,
+      max: student.max,
+      masteryRate: student.masteryRate,
+      consistencyScore: student.consistencyScore,
+      standardDeviation: student.standardDeviation,
+      trend: student.trend,
+      strongest: student.strongest,
+      watchAreas: student.weakest,
+      coverage: student.coverage,
+      subjects: student.subjects,
+      distribution: student.distribution,
+    },
+    records: student.records,
+  });
 }
 
 function buildStudentStats(records: NormalizedRecord[]): StudentStats[] {

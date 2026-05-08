@@ -702,6 +702,19 @@ const labelMn: Record<string, string> = {
   Geometry: "Геометр",
   Algebra: "Алгебр",
   "Algebra Quiz": "Алгебрын асуулт",
+  overrepresented: "хэт төлөөлсөн",
+  underrepresented: "дутуу төлөөлсөн",
+  balanced: "тэнцвэртэй",
+  weak: "сул",
+  moderate: "дунд",
+  strong: "хүчтэй",
+  swing: "огцом хэлбэлзэл",
+  volatility: "хэлбэлзэл",
+  polarization: "туйлшрал",
+  coverage: "хамралт",
+  "high variance": "өндөр хэлбэлзэл",
+  "concentrated focus": "төвлөрсөн хамралт",
+  "low competency diversity": "чадварын олон янз байдал бага",
 };
 
 const directionMn: Record<string, string> = {

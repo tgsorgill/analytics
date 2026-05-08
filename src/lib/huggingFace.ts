@@ -1,6 +1,12 @@
 "use client";
 
-import { buildAiPrompt, buildExtraAiPrompt, parseAiInsight } from "@/lib/promptBuilder";
+import {
+  buildAiPrompt,
+  buildDeterministicAiInsight,
+  buildDeterministicExtraAiInsight,
+  buildExtraAiPrompt,
+  parseAiInsight,
+} from "@/lib/promptBuilder";
 import { protectStudentIdentifierMapping } from "@/lib/mapping";
 import { inferStudentIdentifierRole } from "@/lib/privacy";
 import type { AiInsight, AiRequest, ColumnInference, ColumnMapping, ExtraAiRequest, HeaderDerivation, InternalField } from "@/lib/types";
@@ -70,15 +76,16 @@ export async function requestAiInsight({ token, model, analytics, locale = "en" 
   const payload = (await response.json().catch(() => ({}))) as HuggingFaceChatResponse;
 
   if (!response.ok) {
-    throw new Error(payload.error || `Hugging Face request failed with ${response.status}.`);
+    return buildDeterministicAiInsight(analytics, locale, payload.error || `Hugging Face request failed with ${response.status}.`);
   }
 
   const text = payload.choices?.[0]?.message?.content;
   if (!text) {
-    throw new Error("Hugging Face returned an empty response.");
+    return buildDeterministicAiInsight(analytics, locale, "Hugging Face returned an empty response.");
   }
 
-  return parseAiInsight(text, locale);
+  const insight = parseAiInsight(text, locale);
+  return shouldUseDeterministicFallback(insight) ? buildDeterministicAiInsight(analytics, locale, text) : insight;
 }
 
 export async function requestExtraAiInsight({ token, model, extraAnalytics, locale = "en" }: ExtraAiRequest): Promise<AiInsight> {
@@ -112,15 +119,20 @@ export async function requestExtraAiInsight({ token, model, extraAnalytics, loca
 
   const payload = (await response.json().catch(() => ({}))) as HuggingFaceChatResponse;
   if (!response.ok) {
-    throw new Error(payload.error || `Hugging Face Extra summary failed with ${response.status}.`);
+    return buildDeterministicExtraAiInsight(extraAnalytics, locale, payload.error || `Hugging Face Extra summary failed with ${response.status}.`);
   }
 
   const text = payload.choices?.[0]?.message?.content;
   if (!text) {
-    throw new Error("Hugging Face returned an empty Extra response.");
+    return buildDeterministicExtraAiInsight(extraAnalytics, locale, "Hugging Face returned an empty Extra response.");
   }
 
-  return parseAiInsight(text, locale);
+  const insight = parseAiInsight(text, locale);
+  return shouldUseDeterministicFallback(insight) ? buildDeterministicExtraAiInsight(extraAnalytics, locale, text) : insight;
+}
+
+function shouldUseDeterministicFallback(insight: AiInsight) {
+  return insight.cautions.some((caution) => /json/i.test(caution)) && !insight.trends.length && !insight.instructionalFocus.length;
 }
 
 export async function requestAiColumnMappings({

@@ -122,7 +122,7 @@ export function ExportPanel() {
           <ExportButton
             icon={<FileArchive className="h-4 w-4" />}
             label={t(locale, "exports.pdfReport")}
-            onClick={() => exportPdfReport(parsedCsv.fileName, analytics, aiInsight)}
+            onClick={() => void exportPdfReport(parsedCsv.fileName, analytics, aiInsight, locale)}
           />
         </div>
       </div>
@@ -182,7 +182,7 @@ export function ExportPanel() {
                 const insight =
                   extraAiInsight ??
                   (configuredHfToken ? await ensureExtraAiInsight(extra).catch(() => undefined) : undefined);
-                exportExtraPdfReport(parsedCsv.fileName, extra, insight);
+                await exportExtraPdfReport(parsedCsv.fileName, extra, insight, locale);
               })
             }
           />

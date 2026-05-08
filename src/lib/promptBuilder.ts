@@ -1,5 +1,5 @@
+import { localizeDirection, localizeLabel, type Locale } from "@/lib/i18n";
 import type { AiInsight, AnalyticsResult, ExtraAnalyticsResult } from "@/lib/types";
-import type { Locale } from "@/lib/i18n";
 
 export function buildAiPrompt(analytics: AnalyticsResult, locale: Locale = "en") {
   const payload = sanitizeAnalyticsForAi(analytics);
@@ -140,6 +140,119 @@ export function parseAiInsight(text: string, locale: Locale = "en"): AiInsight {
   return fallbackInsight(text, locale);
 }
 
+export function buildDeterministicAiInsight(analytics: AnalyticsResult, locale: Locale = "en", rawText?: string): AiInsight {
+  const overall = analytics.trendSignals.overall;
+  const weak = analytics.weakTopics.slice(0, 3).map((topic) => localizeLabel(topic.topic, locale));
+  const strong = analytics.strongTopics.slice(0, 3).map((topic) => localizeLabel(topic.topic, locale));
+  const improving = analytics.trendSignals.improving.slice(0, 3);
+  const declining = analytics.trendSignals.declining.slice(0, 3);
+  const hasTrend = overall.direction !== "insufficient_data";
+
+  if (locale === "mn") {
+    return {
+      summary: `${analytics.recordCount.toLocaleString()} нэгтгэсэн бичлэг дээр ангийн дундаж ${pct(analytics.overview.mean)} байна. ${weak.length ? `Анхаарах чиглэл: ${joinList(weak)}.` : ""} ${strong.length ? `Харьцангуй хүчтэй чиглэл: ${joinList(strong)}.` : ""}`.trim(),
+      trends: [
+        hasTrend
+          ? `Ерөнхий хөдөлгөөн ${localizeDirection(overall.direction, locale)}: ${pct(overall.firstAverage)}-аас ${pct(overall.latestAverage)} болж ${signed(overall.change)} өөрчлөгдсөн.`
+          : "Чиг хандлага гаргахад дор хаяж хоёр огноотой эсвэл дараалсан хэсэг хэрэгтэй.",
+        ...improving.map((item) => `${localizeLabel(item.label, locale)} ${signed(item.change)} ахицтай байна.`),
+        ...declining.map((item) => `${localizeLabel(item.label, locale)} ${signed(item.change)} буурсан дохиотой байна.`),
+      ],
+      instructionalFocus: [
+        weak.length ? `${joinList(weak)} чиглэлүүд дээр дахин давтлага, богино шалгалт, зорилтот дасгал төлөвлөх боломжтой.` : "Сэдэв/чадварын ангилал нэмбэл анхаарах чиглэл илүү тодорно.",
+        declining.length ? "Буурч буй чиглэлүүдийг дараагийн үнэлгээ эсвэл хичээлийн төлөвлөлтөд тусад нь ажиглаарай." : "Одоогоор хүчтэй бууралтын дохио хязгаарлагдмал байна.",
+      ],
+      cautions: [
+        "Энэ нь зөвхөн нэгтгэсэн ангийн түвшний тайлбар. Хувь сурагчийг оношлох, эрэмбэлэх, ирээдүйг таамаглах зориулалтгүй.",
+        ...(rawText ? ["Hugging Face-ийн хариу бүтэц алдагдсан тул энэ товч тайлбарыг детерминистик аналитикаас орлуулан үүсгэсэн."] : []),
+      ],
+      chartSuggestions: [
+        { type: "line", title: "Ахицын график", rationale: "Эхний ба сүүлийн дундажийн өөрчлөлтийг харуулна.", priority: 1 },
+        { type: "bar", title: "Ангиллын гүйцэтгэл", rationale: "Хүчтэй болон анхаарах чиглэлүүдийг зэрэгцүүлнэ.", priority: 2 },
+      ],
+      rawText,
+    };
+  }
+
+  return {
+    summary: `${analytics.recordCount.toLocaleString()} normalized records show an overall average of ${pct(analytics.overview.mean)}. ${weak.length ? `Watch areas: ${joinList(weak)}.` : ""} ${strong.length ? `Relative strengths: ${joinList(strong)}.` : ""}`.trim(),
+    trends: [
+      hasTrend
+        ? `Overall movement is ${localizeDirection(overall.direction, locale)}: ${pct(overall.firstAverage)} to ${pct(overall.latestAverage)}, a ${signed(overall.change)} change.`
+        : "Trend analysis needs at least two dated or ordered segments.",
+      ...improving.map((item) => `${localizeLabel(item.label, locale)} is improving by ${signed(item.change)}.`),
+      ...declining.map((item) => `${localizeLabel(item.label, locale)} is declining by ${signed(item.change)}.`),
+    ],
+    instructionalFocus: [
+      weak.length ? `Use targeted review, checks for understanding, or short practice cycles around ${joinList(weak)}.` : "Add category or skill labels to make focus areas clearer.",
+      declining.length ? "Review the declining categories before the next assessment cycle." : "No strong declining category signal is present yet.",
+    ],
+    cautions: [
+      "This is an aggregate classroom-level summary only. It does not diagnose, rank, or predict individual students.",
+      ...(rawText ? ["Hugging Face returned malformed output, so this summary was generated from deterministic analytics as a fallback."] : []),
+    ],
+    chartSuggestions: [
+      { type: "line", title: "Trend over time", rationale: "Shows movement from earliest to latest values.", priority: 1 },
+      { type: "bar", title: "Category performance", rationale: "Compares strengths and watch areas side by side.", priority: 2 },
+    ],
+    rawText,
+  };
+}
+
+export function buildDeterministicExtraAiInsight(extraAnalytics: ExtraAnalyticsResult, locale: Locale = "en", rawText?: string): AiInsight {
+  const first = extraAnalytics.progression.points[0];
+  const latest = extraAnalytics.progression.points[extraAnalytics.progression.points.length - 1];
+  const movement = first && latest ? latest.rollingAverage - first.rollingAverage : 0;
+  const flags = [...extraAnalytics.coverage.overrepresented, ...extraAnalytics.coverage.underrepresented].slice(0, 3);
+  const anomalies = extraAnalytics.anomalies.slice(0, 3);
+
+  if (locale === "mn") {
+    return {
+      summary: `Extra ажлын талбар ${extraAnalytics.recordCount.toLocaleString()} бичлэг дээр хамралт, ахиц, хамаарлын дохиог нэгтгэлээр харуулж байна. Хамралтын тэнцвэргүй индекс ${fixed(extraAnalytics.coverage.imbalanceIndex)}, тогтворгүй байдал ${fixed(extraAnalytics.progression.instabilityIndex)} байна.`,
+      trends: [
+        extraAnalytics.progression.direction === "insufficient_data"
+          ? "Ахицын хөдөлгөөн гаргахад мэдээлэл дутуу байна."
+          : `Ахицын чиглэл ${localizeDirection(extraAnalytics.progression.direction, locale)} бөгөөд rolling дундаж ${signed(movement)} өөрчлөгдсөн.`,
+      ],
+      instructionalFocus: [
+        flags.length ? `Хамралтын дохио: ${joinList(flags.map((item) => localizeLabel(item.label, locale)))}.` : "Хамралтын тодорхой тэнцвэргүй дохио одоогоор бага байна.",
+        anomalies.length ? `Статистик анхаарах дохио: ${joinList(anomalies.map((item) => localizeLabel(item.label, locale)))}.` : "Гаж хэлбэлзлийн дохио одоогоор хязгаарлагдмал байна.",
+      ],
+      cautions: [
+        "Extra нь зөвхөн статистик хамаарал, хамралт, хэлбэлзлийг харуулна. Шалтгаан, онош, сахилгын дүгнэлт биш.",
+        ...(rawText ? ["Hugging Face-ийн хариу бүтэц алдагдсан тул энэ товч тайлбарыг детерминистик Extra аналитикаас орлуулан үүсгэсэн."] : []),
+      ],
+      chartSuggestions: [
+        { type: "line", title: "Ахицын хөдөлгөөн", rationale: "Rolling дундаж хэрхэн өөрчлөгдөж байгааг харуулна.", priority: 1 },
+        { type: "heatmap", title: "Хамаарлын матриц", rationale: "Чиглэлүүдийн статистик холбоог харуулна.", priority: 2 },
+      ],
+      rawText,
+    };
+  }
+
+  return {
+    summary: `Extra analyzed ${extraAnalytics.recordCount.toLocaleString()} records for coverage, momentum, and relationship signals. Coverage imbalance is ${fixed(extraAnalytics.coverage.imbalanceIndex)} and instability is ${fixed(extraAnalytics.progression.instabilityIndex)}.`,
+    trends: [
+      extraAnalytics.progression.direction === "insufficient_data"
+        ? "Progression needs more repeated or ordered records."
+        : `Progression is ${localizeDirection(extraAnalytics.progression.direction, locale)} with a rolling movement of ${signed(movement)}.`,
+    ],
+    instructionalFocus: [
+      flags.length ? `Coverage flags: ${joinList(flags.map((item) => localizeLabel(item.label, locale)))}.` : "No major coverage imbalance is visible yet.",
+      anomalies.length ? `Statistical signals to inspect: ${joinList(anomalies.map((item) => localizeLabel(item.label, locale)))}.` : "No major anomaly signal is visible yet.",
+    ],
+    cautions: [
+      "Extra shows statistical relationships, coverage, and volatility only. It does not infer causes, diagnose, or discipline students.",
+      ...(rawText ? ["Hugging Face returned malformed output, so this summary was generated from deterministic Extra analytics as a fallback."] : []),
+    ],
+    chartSuggestions: [
+      { type: "line", title: "Progression momentum", rationale: "Shows rolling movement across ordered segments.", priority: 1 },
+      { type: "heatmap", title: "Correlation matrix", rationale: "Shows statistical relationships between dimensions.", priority: 2 },
+    ],
+    rawText,
+  };
+}
+
 function sanitizeTopic(topic: AnalyticsResult["topicStats"][number]) {
   return {
     topic: sanitizeLabel(topic.topic),
@@ -150,6 +263,22 @@ function sanitizeTopic(topic: AnalyticsResult["topicStats"][number]) {
     standardDeviation: topic.standardDeviation,
     consistencyScore: topic.consistencyScore,
   };
+}
+
+function pct(value: number) {
+  return `${fixed(value)}%`;
+}
+
+function signed(value: number) {
+  return `${value > 0 ? "+" : ""}${fixed(value)} pts`;
+}
+
+function fixed(value: number) {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+}
+
+function joinList(values: string[]) {
+  return values.filter(Boolean).join(", ");
 }
 
 function sanitizeLabel(label: string) {
