@@ -40,6 +40,23 @@ const headerKeywords = [
   "date",
   "max",
   "possible",
+  "сурагч",
+  "нэр",
+  "дугаар",
+  "код",
+  "хичээл",
+  "сэдэв",
+  "стандарт",
+  "чадвар",
+  "шалгалт",
+  "сорил",
+  "даалгавар",
+  "оноо",
+  "хувь",
+  "дүн",
+  "огноо",
+  "улирал",
+  "нийт",
 ];
 
 export function sanitizeHeader(header: string) {
@@ -166,7 +183,7 @@ function headerRowScore(row: RawCsvRow, nextRows: RawCsvRow[]) {
   const dataRows = nextRows.filter((candidate) => candidate.some(Boolean));
   const width = cells.length;
   const keywordHits = cells.filter((cell) => containsHeaderKeyword(cell)).length / width;
-  const textLikeHeaders = cells.filter((cell) => /[a-z]/i.test(cell) && !parseScoreValue(cell)).length / width;
+  const textLikeHeaders = cells.filter((cell) => /\p{L}/u.test(cell) && !parseScoreValue(cell)).length / width;
   const uniqueRatio = new Set(cells.map((cell) => cell.toLowerCase())).size / width;
   const dataCompatibility = dataRows.length ? compatibleDataRows(cells, dataRows) : 0.2;
   const rowDensity = width / Math.max(1, row.length);

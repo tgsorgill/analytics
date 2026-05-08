@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Locale } from "@/lib/i18n";
 
 export const internalFields = [
   "studentId",
@@ -253,12 +254,14 @@ export type AiRequest = {
   token: string;
   model: string;
   analytics: AnalyticsResult;
+  locale?: Locale;
 };
 
 export type ExtraAiRequest = {
   token: string;
   model: string;
   extraAnalytics: ExtraAnalyticsResult;
+  locale?: Locale;
 };
 
 export type ExtraRelationship = {

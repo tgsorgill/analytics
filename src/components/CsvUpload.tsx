@@ -2,17 +2,19 @@
 
 import { useRef, useState } from "react";
 import { FileSpreadsheet, Upload } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { parseCsvFile } from "@/lib/csv";
 import { inferSchema } from "@/lib/schemaInference";
 import { mappingsFromInference } from "@/lib/mapping";
 import { configuredHfToken, defaultAiModel, requestAiColumnMappings } from "@/lib/huggingFace";
 import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 export function CsvUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const { isParsing, parseProgress, setParsedCsv, setParsing, setParseProgress, setError, setAiInsight, setExtraAiInsight, setExtraAnalytics, error } =
+  const { locale, isParsing, parseProgress, setParsedCsv, setParsing, setParseProgress, setError, setAiInsight, setExtraAiInsight, setExtraAnalytics, error } =
     useAnalyticsStore();
 
   async function handleFile(file?: File) {
@@ -21,7 +23,7 @@ export function CsvUpload() {
     }
 
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Upload a CSV file.");
+      setError(t(locale, "upload.csvOnly"));
       return;
     }
 
@@ -46,7 +48,7 @@ export function CsvUpload() {
         : fallbackMappings;
       setParsedCsv(parsed, inferences, mappings);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "CSV parsing failed.");
+      setError(caught instanceof Error ? caught.message : t(locale, "upload.parseFailed"));
     } finally {
       setParsing(false);
     }
@@ -55,12 +57,15 @@ export function CsvUpload() {
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-10">
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">
-          <FileSpreadsheet className="h-4 w-4" />
-          Local-first classroom analytics
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">
+            <FileSpreadsheet className="h-4 w-4" />
+            {t(locale, "upload.kicker")}
+          </div>
+          <LanguageSwitcher compact />
         </div>
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight text-[#1c1f23]">
-          Upload school CSVs and inspect classroom-level analytics.
+          {t(locale, "upload.title")}
         </h1>
       </div>
 
@@ -86,16 +91,14 @@ export function CsvUpload() {
           <Upload className="h-7 w-7" />
         </div>
         <div className="flex flex-col gap-1">
-          <p className="text-lg font-semibold">Drop a CSV file or browse</p>
-          <p className="text-sm text-[#5b635f]">
-            Rows stay in browser memory. The app only asks for mapping help when the score column is unclear.
-          </p>
+          <p className="text-lg font-semibold">{t(locale, "upload.drop")}</p>
+          <p className="text-sm text-[#5b635f]">{t(locale, "upload.privacy")}</p>
         </div>
         <button
           className="rounded bg-[#16726d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f5a55]"
           type="button"
         >
-          Select CSV
+          {t(locale, "upload.select")}
         </button>
         <input
           ref={inputRef}
@@ -109,8 +112,10 @@ export function CsvUpload() {
       {isParsing ? (
         <div className="metric-panel p-4 text-sm">
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-medium">Parsing and interpreting CSV</span>
-            <span>{parseProgress.toLocaleString()} rows</span>
+            <span className="font-medium">{t(locale, "upload.parsing")}</span>
+            <span>
+              {parseProgress.toLocaleString()} {t(locale, "upload.rows")}
+            </span>
           </div>
           <div className="h-2 rounded bg-[#d9ded8]">
             <div className="h-2 w-2/3 animate-pulse rounded bg-[#16726d]" />
@@ -121,10 +126,10 @@ export function CsvUpload() {
       {error ? <div className="rounded border border-[#e2aaa1] bg-[#fae2de] p-3 text-sm text-[#8a2f24]">{error}</div> : null}
 
       <div className="grid gap-3 text-sm text-[#3f4642] md:grid-cols-4">
-        <div className="metric-panel p-4">No database</div>
-        <div className="metric-panel p-4">No authentication</div>
-        <div className="metric-panel p-4">No raw CSV to AI</div>
-        <div className="metric-panel p-4">Local exports</div>
+        <div className="metric-panel p-4">{t(locale, "upload.noDb")}</div>
+        <div className="metric-panel p-4">{t(locale, "upload.noAuth")}</div>
+        <div className="metric-panel p-4">{t(locale, "upload.noRawAi")}</div>
+        <div className="metric-panel p-4">{t(locale, "upload.localExports")}</div>
       </div>
     </section>
   );

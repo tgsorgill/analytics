@@ -48,7 +48,7 @@ export function parseScoreValue(value: unknown, explicitMaxScore?: number): Pars
     };
   }
 
-  const fractionMatch = text.match(/(-?\d+(?:[.,]\d+)?)\s*(?:\/|out of)\s*(\d+(?:[.,]\d+)?)/i);
+  const fractionMatch = text.match(/(-?\d+(?:[.,]\d+)?)\s*(?:\/|out of|аас|өөс|нийт)\s*(\d+(?:[.,]\d+)?)/i);
   if (fractionMatch) {
     const score = toNumber(fractionMatch[1]);
     const maxScore = toNumber(fractionMatch[2]);
@@ -130,6 +130,21 @@ export function parseProficiencyValue(value: string) {
     "does not meet": 45,
     fail: 45,
     no: 45,
+    "ахисан": 95,
+    "давсан": 95,
+    "эзэмшсэн": 90,
+    "чадварлаг": 85,
+    "хангалттай": 85,
+    "тэнцсэн": 85,
+    "тийм": 85,
+    "ойртож байна": 72,
+    "хөгжиж байна": 65,
+    "хэсэгчлэн хангалттай": 65,
+    "эхэлж байна": 50,
+    "хараахан биш": 45,
+    "хангалтгүй": 45,
+    "унасан": 45,
+    "үгүй": 45,
   };
 
   return rubric[normalized] ?? null;

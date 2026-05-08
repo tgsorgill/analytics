@@ -1,8 +1,10 @@
 "use client";
 
 import { Activity, AlertTriangle, Brain, Calculator, Gauge, Layers3, LineChart, Network, Radar, Sigma, Target } from "lucide-react";
+import { localizeDirection, localizeLabel, t } from "@/lib/i18n";
 import type { AnalyticsResult } from "@/lib/types";
 import { formatNumber, formatPercent } from "@/lib/utils";
+import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 
 const clusterDefinitions = [
   {
@@ -164,18 +166,16 @@ const extraGuide = [
 ];
 
 export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult }) {
+  const { locale } = useAnalyticsStore();
   return (
     <section className="workspace-page reveal-up flex flex-col gap-5">
       <div className="metric-panel interactive-panel p-6">
         <div className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">
           <Calculator className="h-4 w-4" />
-          Formula Guide
+          {t(locale, "formulas.kicker")}
         </div>
-        <h2 className="mt-3 text-3xl font-semibold">How the dashboard calculates results</h2>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-[#4f5954]">
-          These are deterministic classroom-level formulas. They explain aggregate patterns only and do not evaluate,
-          diagnose, rank, or predict individual students.
-        </p>
+        <h2 className="mt-3 text-3xl font-semibold">{t(locale, "formulas.title")}</h2>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-[#4f5954]">{t(locale, "formulas.body")}</p>
       </div>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -184,19 +184,19 @@ export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult })
           return (
             <article key={item.label} className="metric-panel interactive-panel p-5">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold">{item.label}</h3>
+                <h3 className="font-semibold">{localizeLabel(item.label, locale)}</h3>
                 <span className="rounded px-2 py-1 text-xs font-semibold text-white" style={{ background: item.color }}>
                   {item.range}
                 </span>
               </div>
-              <p className="mt-3 text-sm leading-6 text-[#4f5954]">{item.body}</p>
+              <p className="mt-3 text-sm leading-6 text-[#4f5954]">{localizeFormulaText(item.body, locale)}</p>
               <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                 <div className="rounded border border-[#d9ded8] bg-[#f7faf7] p-3">
-                  <div className="text-xs uppercase tracking-normal text-[#6b746f]">Records</div>
+                  <div className="text-xs uppercase tracking-normal text-[#6b746f]">{t(locale, "common.records")}</div>
                   <div className="mt-1 text-xl font-semibold">{cluster?.count ?? 0}</div>
                 </div>
                 <div className="rounded border border-[#d9ded8] bg-[#f7faf7] p-3">
-                  <div className="text-xs uppercase tracking-normal text-[#6b746f]">Average</div>
+                  <div className="text-xs uppercase tracking-normal text-[#6b746f]">{t(locale, "common.average")}</div>
                   <div className="mt-1 text-xl font-semibold">{formatPercent(cluster?.average ?? 0)}</div>
                 </div>
               </div>
@@ -215,11 +215,11 @@ export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult })
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">{item.title}</h3>
+                  <h3 className="font-semibold">{localizeFormulaText(item.title, locale)}</h3>
                   <code className="mt-2 block rounded border border-[#d9ded8] bg-[#f7faf7] px-3 py-2 text-sm text-[#27302c]">
                     {item.formula}
                   </code>
-                  <p className="mt-3 text-sm leading-6 text-[#4f5954]">{item.body}</p>
+                  <p className="mt-3 text-sm leading-6 text-[#4f5954]">{localizeFormulaText(item.body, locale)}</p>
                 </div>
               </div>
             </article>
@@ -230,13 +230,10 @@ export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult })
       <section className="metric-panel interactive-panel p-6">
         <div className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">
           <Network className="h-4 w-4" />
-          Extra Workspace Guide
+          {t(locale, "formulas.extraKicker")}
         </div>
-        <h3 className="mt-3 text-2xl font-semibold">What every Extra module means</h3>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#4f5954]">
-          Extra is an advanced aggregate analytics workspace. These explanations describe each module and the deterministic
-          signal behind it.
-        </p>
+        <h3 className="mt-3 text-2xl font-semibold">{t(locale, "formulas.extraTitle")}</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#4f5954]">{t(locale, "formulas.extraBody")}</p>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {extraGuide.map((item) => {
             const Icon = item.icon;
@@ -247,11 +244,11 @@ export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult })
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="font-semibold">{item.title}</h4>
+                    <h4 className="font-semibold">{localizeFormulaText(item.title, locale)}</h4>
                     <code className="mt-2 block rounded border border-[#d9ded8] bg-[#f7faf7] px-3 py-2 text-sm text-[#27302c]">
                       {item.formula}
                     </code>
-                    <p className="mt-3 text-sm leading-6 text-[#4f5954]">{item.body}</p>
+                    <p className="mt-3 text-sm leading-6 text-[#4f5954]">{localizeFormulaText(item.body, locale)}</p>
                   </div>
                 </div>
               </article>
@@ -261,13 +258,13 @@ export function FormulasWorkspace({ analytics }: { analytics: AnalyticsResult })
       </section>
 
       <section className="metric-panel interactive-panel p-5">
-        <h3 className="font-semibold">Current Dataset Snapshot</h3>
+        <h3 className="font-semibold">{t(locale, "formulas.snapshot")}</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <FormulaSnapshot label="Records" value={analytics.recordCount.toLocaleString()} />
-          <FormulaSnapshot label="Average" value={formatPercent(analytics.overview.mean)} />
-          <FormulaSnapshot label="Mastery" value={formatPercent(analytics.overview.masteryRate)} />
-          <FormulaSnapshot label="Std dev" value={formatNumber(analytics.overview.standardDeviation)} />
-          <FormulaSnapshot label="Trend" value={analytics.trend.direction.replace("_", " ")} />
+          <FormulaSnapshot label={t(locale, "common.records")} value={analytics.recordCount.toLocaleString()} />
+          <FormulaSnapshot label={t(locale, "common.average")} value={formatPercent(analytics.overview.mean)} />
+          <FormulaSnapshot label={t(locale, "common.mastery")} value={formatPercent(analytics.overview.masteryRate)} />
+          <FormulaSnapshot label={t(locale, "common.stdDev")} value={formatNumber(analytics.overview.standardDeviation)} />
+          <FormulaSnapshot label={t(locale, "common.trend")} value={localizeDirection(analytics.trend.direction, locale)} />
         </div>
       </section>
     </section>
@@ -281,4 +278,67 @@ function FormulaSnapshot({ label, value }: { label: string; value: string }) {
       <div className="mt-1 text-xl font-semibold">{value}</div>
     </div>
   );
+}
+
+function localizeFormulaText(value: string, locale: "en" | "mn") {
+  if (locale !== "mn") {
+    return value;
+  }
+
+  const copy: Record<string, string> = {
+    "Records below the classroom proficiency band. This is a statistical grouping only, not a student label.":
+      "Ангийн чадварын бүсээс доогуур бичлэгүүд. Энэ нь зөвхөн статистик бүлэглэл бөгөөд сурагчийн шошго биш.",
+    "Records moving toward proficiency, useful for seeing where reteaching may help the whole group.":
+      "Чадварт ойртож буй бичлэгүүд. Бүх бүлэгт дахин заах хэрэгтэй хэсгийг харахад тустай.",
+    "Records in the expected performance band for the dashboard's deterministic breakdown.":
+      "Самбарын детерминистик задаргааны хүлээгдэж буй гүйцэтгэлийн бүсэд байгаа бичлэгүүд.",
+    "Records in the highest local performance band. Scores above 100 are clamped only for distribution charts.":
+      "Дотоод гүйцэтгэлийн хамгийн өндөр бүсийн бичлэгүүд. 100-аас дээш оноог зөвхөн тархалтын графикт 100 хүртэл хязгаарлана.",
+    "Mastery Rate": "Эзэмшлийн хувь",
+    "Average": "Дундаж",
+    "Median": "Медиан",
+    "Standard Deviation": "Стандарт хазайлт",
+    "Consistency Score": "Тогтвортой байдлын оноо",
+    "Trend Direction": "Чиг хандлагын чиглэл",
+    "Variance": "Варианс",
+    "Topic Strength / Weakness": "Сэдвийн давуу / сул тал",
+    "Relationship Intelligence": "Хамаарлын аналитик",
+    "Correlation Matrix": "Корреляцийн матриц",
+    "Relationship Map": "Хамаарлын зураг",
+    "Curriculum Coverage": "Хөтөлбөрийн хамралт",
+    "Coverage Status": "Хамралтын төлөв",
+    "Progression Momentum": "Ахицын хөдөлгөөн",
+    "Volatility": "Хэлбэлзэл",
+    "Anonymous Cohort Archetypes": "Нэргүй cohort хэв шинж",
+    "Assessment Intelligence": "Үнэлгээний аналитик",
+    "Pattern Signals": "Загварын дохио",
+    "Intelligence Profile": "Аналитик профайл",
+    "Dimension Lens": "Хэмжээсийн линз",
+    "Extra AI Brief": "Extra AI товч тайлбар",
+  };
+
+  if (copy[value]) {
+    return copy[value];
+  }
+
+  if (value.includes("mastery threshold")) {
+    return "Оноо бүрийг 0-100 хувь болгон хөрвүүлсний дараа эзэмшлийн босго буюу түүнээс дээш бичлэгийн хувь.";
+  }
+  if (value.includes("mean classroom score")) {
+    return "Сонгосон нэгтгэсэн бичлэгүүдийн ангийн дундаж оноо.";
+  }
+  if (value.includes("middle score")) {
+    return "Эрэмбэлсэн онооны гол утга. Хоёр гол утгатай бол тэдгээрийн дунджийг авна.";
+  }
+  if (value.includes("spread measure")) {
+    return "Тархалтын хэмжүүр. Их байх тусам бичлэгүүдийн оноо илүү өөр өөр байна.";
+  }
+  if (value.includes("statistical alignment")) {
+    return "Нэргүй бүлэг эсвэл оруулсан дарааллын хэсгүүдээр ангиллын хэв маягийг харьцуулна. Зөвхөн статистик нийцлийг хэлнэ, шалтгаан биш.";
+  }
+  if (value.includes("Do not")) {
+    return "Энэ модуль нь зөвхөн нэгтгэсэн статистик тайлбар өгнө. Сурагчийг үнэлэх, оношлох, зан төлөв дүгнэх, шийдвэр гаргахгүй.";
+  }
+
+  return value;
 }

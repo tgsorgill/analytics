@@ -1,6 +1,7 @@
 "use client";
 
 import { jsPDF } from "jspdf";
+import { t, type Locale } from "@/lib/i18n";
 import type { AiInsight, AnalyticsResult, ColumnMapping, ExtraAnalyticsResult, NormalizationResult } from "@/lib/types";
 import { downloadJson, downloadText, safeFilename } from "@/lib/utils";
 
@@ -20,22 +21,22 @@ export function exportAnalytics(fileName: string, analytics: AnalyticsResult, ma
   });
 }
 
-export function exportAiSummary(fileName: string, insight: AiInsight) {
+export function exportAiSummary(fileName: string, insight: AiInsight, locale: Locale = "en") {
   downloadText(
     `${safeFilename(fileName)}-ai-summary.txt`,
     [
-      "AI Summary",
+      t(locale, "exports.aiSummary"),
       `Exported: ${new Date().toISOString()}`,
       "",
       insight.summary,
       "",
-      "Trends",
+      t(locale, "ai.trends"),
       ...insight.trends.map((trend) => `- ${trend}`),
       "",
-      "Instructional Focus",
+      t(locale, "ai.focus"),
       ...insight.instructionalFocus.map((focus) => `- ${focus}`),
       "",
-      "Cautions",
+      t(locale, "ai.cautions"),
       ...insight.cautions.map((caution) => `- ${caution}`),
     ].join("\n"),
   );
@@ -68,22 +69,22 @@ export function exportExtraAnalytics(fileName: string, extraAnalytics: ExtraAnal
   });
 }
 
-export function exportExtraAiSummary(fileName: string, insight: AiInsight) {
+export function exportExtraAiSummary(fileName: string, insight: AiInsight, locale: Locale = "en") {
   downloadText(
     `${safeFilename(fileName)}-extra-ai-summary.txt`,
     [
-      "Extra AI Summary",
+      t(locale, "exports.extraAiSummary"),
       `Exported: ${new Date().toISOString()}`,
       "",
       insight.summary,
       "",
-      "Trends",
+      t(locale, "ai.trends"),
       ...insight.trends.map((trend) => `- ${trend}`),
       "",
-      "Instructional Focus",
+      t(locale, "ai.focus"),
       ...insight.instructionalFocus.map((focus) => `- ${focus}`),
       "",
-      "Cautions",
+      t(locale, "ai.cautions"),
       ...insight.cautions.map((caution) => `- ${caution}`),
     ].join("\n"),
   );

@@ -11,11 +11,14 @@ import type {
   NormalizationResult,
   ParsedCsv,
 } from "@/lib/types";
+import type { Locale } from "@/lib/i18n";
 
 type AppPhase = "upload" | "mapping" | "dashboard";
-type WorkspaceMode = "overview" | "extra" | "exports" | "formulas" | "architecture";
+type WorkspaceMode = "overview" | "individual" | "extra" | "exports" | "formulas" | "architecture";
 
 type AnalyticsStore = {
+  locale: Locale;
+  localePromptOpen: boolean;
   phase: AppPhase;
   parsedCsv?: ParsedCsv;
   inferences: ColumnInference[];
@@ -31,6 +34,9 @@ type AnalyticsStore = {
   isAnalyzing: boolean;
   parseProgress: number;
   error?: string;
+  setLocale: (locale: Locale) => void;
+  openLocalePrompt: () => void;
+  dismissLocalePrompt: () => void;
   setParsedCsv: (parsedCsv: ParsedCsv, inferences: ColumnInference[], mappings: ColumnMapping[]) => void;
   updateMapping: (column: string, patch: Partial<ColumnMapping>) => void;
   setMappingValidation: (validation: MappingValidation) => void;
@@ -48,6 +54,8 @@ type AnalyticsStore = {
 };
 
 export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
+  locale: readInitialLocale(),
+  localePromptOpen: shouldOpenLocalePrompt(),
   phase: "upload",
   inferences: [],
   mappings: [],
@@ -55,6 +63,16 @@ export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
   isAnalyzing: false,
   workspaceMode: "overview",
   parseProgress: 0,
+  setLocale: (locale) => {
+    persistLocale(locale);
+    markLocalePromptSeen();
+    set({ locale, localePromptOpen: false, aiInsight: undefined, extraAiInsight: undefined });
+  },
+  openLocalePrompt: () => set({ localePromptOpen: true }),
+  dismissLocalePrompt: () => {
+    markLocalePromptSeen();
+    set({ localePromptOpen: false });
+  },
   setParsedCsv: (parsedCsv, inferences, mappings) =>
     set({
       parsedCsv,
@@ -111,3 +129,46 @@ export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
       error: undefined,
     }),
 }));
+
+function readInitialLocale(): Locale {
+  if (typeof window === "undefined") {
+    return "en";
+  }
+
+  const stored = window.localStorage.getItem("classroom_analytics_locale") ?? readCookie("classroom_analytics_locale");
+  return stored === "mn" ? "mn" : "en";
+}
+
+function shouldOpenLocalePrompt() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.sessionStorage.getItem("classroom_analytics_locale_seen") !== "1";
+}
+
+function persistLocale(locale: Locale) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem("classroom_analytics_locale", locale);
+  document.cookie = `classroom_analytics_locale=${locale}; max-age=31536000; path=/; SameSite=Lax`;
+}
+
+function markLocalePromptSeen() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.setItem("classroom_analytics_locale_seen", "1");
+}
+
+function readCookie(name: string) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}

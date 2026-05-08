@@ -14,12 +14,14 @@ import {
   exportPdfReport,
 } from "@/lib/exporters";
 import { configuredHfToken, defaultAiModel, requestExtraAiInsight } from "@/lib/huggingFace";
+import { t } from "@/lib/i18n";
 import type { ExtraAnalyticsResult } from "@/lib/types";
 import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 
 export function ExportPanel() {
   const {
     parsedCsv,
+    locale,
     normalized,
     analytics,
     mappings,
@@ -42,7 +44,7 @@ export function ExportPanel() {
     }
 
     if (!normalized?.records.length) {
-      throw new Error("No normalized records are available for Extra export.");
+      throw new Error(locale === "mn" ? "Extra экспортод ашиглах нэгтгэсэн бичлэг алга." : "No normalized records are available for Extra export.");
     }
 
     const computed = await computeExtraAnalyticsInWorker(normalized.records);
@@ -56,13 +58,14 @@ export function ExportPanel() {
     }
 
     if (!configuredHfToken) {
-      throw new Error("Extra AI summary export needs NEXT_PUBLIC_HF_TOKEN configured.");
+      throw new Error(locale === "mn" ? "Extra AI хураангуй экспортод NEXT_PUBLIC_HF_TOKEN хэрэгтэй." : "Extra AI summary export needs NEXT_PUBLIC_HF_TOKEN configured.");
     }
 
     const insight = await requestExtraAiInsight({
       token: configuredHfToken,
       model: defaultAiModel,
       extraAnalytics: extra,
+      locale,
     });
     setExtraAiInsight(insight);
     return insight;
@@ -75,7 +78,7 @@ export function ExportPanel() {
       const extra = await ensureExtraAnalytics();
       await action(extra);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Extra export failed.");
+      setError(error instanceof Error ? error.message : locale === "mn" ? "Extra экспорт амжилтгүй боллоо." : "Extra export failed.");
     } finally {
       setExtraExporting(null);
     }
@@ -88,37 +91,37 @@ export function ExportPanel() {
           <div>
             <h2 className="inline-flex items-center gap-2 text-lg font-semibold">
               <Download className="h-5 w-5 text-[#16726d]" />
-              Overview exports
+              {t(locale, "exports.overviewTitle")}
             </h2>
             <p className="mt-2 text-sm leading-6 text-[#5b635f]">
-              Download the normalized dataset, computed analytics, AI summary, or complete PDF report for the main dashboard.
+              {t(locale, "exports.overviewBody")}
             </p>
           </div>
           <span className="rounded border border-[#d9ded8] bg-[#f7faf7] px-2 py-1 text-xs font-semibold text-[#4f5954]">
-            Local files
+            {t(locale, "common.localFiles")}
           </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <ExportButton
             icon={<FileJson className="h-4 w-4" />}
-            label="Normalized JSON"
+            label={t(locale, "exports.normalizedJson")}
             onClick={() => exportNormalizedDataset(parsedCsv.fileName, normalized)}
           />
           <ExportButton
             icon={<FileJson className="h-4 w-4" />}
-            label="Analytics JSON"
+            label={t(locale, "exports.analyticsJson")}
             onClick={() => exportAnalytics(parsedCsv.fileName, analytics, mappings)}
           />
           <ExportButton
             icon={<FileText className="h-4 w-4" />}
-            label="AI Summary"
+            label={t(locale, "exports.aiSummary")}
             disabled={!aiInsight}
-            onClick={() => aiInsight && exportAiSummary(parsedCsv.fileName, aiInsight)}
+            onClick={() => aiInsight && exportAiSummary(parsedCsv.fileName, aiInsight, locale)}
           />
           <ExportButton
             icon={<FileArchive className="h-4 w-4" />}
-            label="PDF Report"
+            label={t(locale, "exports.pdfReport")}
             onClick={() => exportPdfReport(parsedCsv.fileName, analytics, aiInsight)}
           />
         </div>
@@ -129,21 +132,21 @@ export function ExportPanel() {
           <div>
             <h2 className="inline-flex items-center gap-2 text-lg font-semibold">
               <FileArchive className="h-5 w-5 text-[#c65d21]" />
-              Extra exports
+              {t(locale, "exports.extraTitle")}
             </h2>
             <p className="mt-2 text-sm leading-6 text-[#5b635f]">
-              Package the advanced workspace outputs. Extra analytics compute locally on demand when they are not already cached.
+              {t(locale, "exports.extraBody")}
             </p>
           </div>
           <span className="rounded border border-[#d9ded8] bg-[#fff6eb] px-2 py-1 text-xs font-semibold text-[#8a3d13]">
-            Advanced
+            {t(locale, "exports.advanced")}
           </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <ExportButton
             icon={<FileJson className="h-4 w-4" />}
-            label={extraExporting === "extra-normalized" ? "Preparing Extra JSON" : "Extra Normalized JSON"}
+            label={extraExporting === "extra-normalized" ? t(locale, "exports.preparingJson") : t(locale, "exports.extraNormalizedJson")}
             disabled={Boolean(extraExporting)}
             onClick={() =>
               void runExtraExport("extra-normalized", (extra) =>
@@ -153,7 +156,7 @@ export function ExportPanel() {
           />
           <ExportButton
             icon={<FileJson className="h-4 w-4" />}
-            label={extraExporting === "extra-analytics" ? "Preparing Extra JSON" : "Extra Analytics JSON"}
+            label={extraExporting === "extra-analytics" ? t(locale, "exports.preparingJson") : t(locale, "exports.extraAnalyticsJson")}
             disabled={Boolean(extraExporting)}
             onClick={() =>
               void runExtraExport("extra-analytics", (extra) => exportExtraAnalytics(parsedCsv.fileName, extra))
@@ -161,18 +164,18 @@ export function ExportPanel() {
           />
           <ExportButton
             icon={<FileText className="h-4 w-4" />}
-            label={extraExporting === "extra-ai" ? "Preparing Extra AI" : "Extra AI Summary"}
+            label={extraExporting === "extra-ai" ? t(locale, "exports.preparingAi") : t(locale, "exports.extraAiSummary")}
             disabled={Boolean(extraExporting) || !configuredHfToken}
             onClick={() =>
               void runExtraExport("extra-ai", async (extra) => {
                 const insight = await ensureExtraAiInsight(extra);
-                exportExtraAiSummary(parsedCsv.fileName, insight);
+                exportExtraAiSummary(parsedCsv.fileName, insight, locale);
               })
             }
           />
           <ExportButton
             icon={<FileArchive className="h-4 w-4" />}
-            label={extraExporting === "extra-pdf" ? "Preparing Extra PDF" : "Extra PDF Report"}
+            label={extraExporting === "extra-pdf" ? t(locale, "exports.preparingPdf") : t(locale, "exports.extraPdfReport")}
             disabled={Boolean(extraExporting)}
             onClick={() =>
               void runExtraExport("extra-pdf", async (extra) => {
@@ -187,11 +190,11 @@ export function ExportPanel() {
       </div>
 
       <div className="metric-panel reveal-up p-5 sm:p-6 lg:col-span-2" style={{ animationDelay: "120ms" }}>
-        <h3 className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">Current dataset package</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">{t(locale, "exports.package")}</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <SummaryStat label="Source rows" value={normalized.summary.sourceRows.toLocaleString()} />
-          <SummaryStat label="Normalized records" value={normalized.summary.normalizedRecords.toLocaleString()} />
-          <SummaryStat label="Skipped values" value={normalized.summary.skippedValues.toLocaleString()} />
+          <SummaryStat label={t(locale, "exports.sourceRows")} value={normalized.summary.sourceRows.toLocaleString()} />
+          <SummaryStat label={t(locale, "exports.normalizedRecords")} value={normalized.summary.normalizedRecords.toLocaleString()} />
+          <SummaryStat label={t(locale, "exports.skippedValues")} value={normalized.summary.skippedValues.toLocaleString()} />
         </div>
       </div>
     </section>

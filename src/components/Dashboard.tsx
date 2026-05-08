@@ -21,22 +21,26 @@ import { AiSummaryPanel } from "@/components/AiSummaryPanel";
 import { ExportPanel } from "@/components/ExportPanel";
 import { ExtraWorkspace } from "@/components/ExtraWorkspace";
 import { FormulasWorkspace } from "@/components/FormulasWorkspace";
+import { IndividualWorkspace } from "@/components/IndividualWorkspace";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { StatusBadge } from "@/components/StatusBadge";
+import { localizeDirection, localizeLabel, t, type Locale } from "@/lib/i18n";
 import type { AnalyticsResult } from "@/lib/types";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 
 const chartColors = ["#16726d", "#2f69a1", "#c65d21", "#b8860b", "#7a5aa6", "#b63f3f"];
 const workspaceTabs = [
-  { id: "overview", label: "Overview", activeClass: "bg-[#16726d] text-white" },
-  { id: "extra", label: "Extra", activeClass: "bg-[#101418] text-white" },
-  { id: "exports", label: "Exports", activeClass: "bg-[#c65d21] text-white" },
-  { id: "formulas", label: "Formulas", activeClass: "bg-[#2f69a1] text-white" },
-  { id: "architecture", label: "Architecture", activeClass: "bg-[#5a4f43] text-white" },
+  { id: "overview", labelKey: "tabs.overview", activeClass: "bg-[#16726d] text-white" },
+  { id: "individual", labelKey: "tabs.individual", activeClass: "bg-[#7a5aa6] text-white" },
+  { id: "extra", labelKey: "tabs.extra", activeClass: "bg-[#101418] text-white" },
+  { id: "exports", labelKey: "tabs.exports", activeClass: "bg-[#c65d21] text-white" },
+  { id: "formulas", labelKey: "tabs.formulas", activeClass: "bg-[#2f69a1] text-white" },
+  { id: "architecture", labelKey: "tabs.architecture", activeClass: "bg-[#5a4f43] text-white" },
 ] as const;
 
 export function Dashboard() {
-  const { parsedCsv, analytics, normalized, reset, workspaceMode, setWorkspaceMode } = useAnalyticsStore();
+  const { locale, parsedCsv, analytics, normalized, reset, workspaceMode, setWorkspaceMode } = useAnalyticsStore();
 
   if (!analytics || !normalized || !parsedCsv) {
     return null;
@@ -46,22 +50,33 @@ export function Dashboard() {
     <main className="mx-auto flex w-full max-w-[1540px] flex-col gap-6 px-5 py-6 sm:px-7 lg:px-10">
       <div className="metric-panel interactive-panel reveal-up flex flex-col gap-4 p-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">Analytics dashboard</p>
+          <p className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">{t(locale, "dashboard.kicker")}</p>
           <h1 className="text-3xl font-semibold">{parsedCsv.fileName}</h1>
           <div className="mt-2 flex flex-wrap gap-2">
-            <StatusBadge tone="success">{analytics.recordCount.toLocaleString()} normalized records</StatusBadge>
-            <StatusBadge tone="info">{normalized.summary.scoreColumns} score column(s)</StatusBadge>
-            {normalized.issues.length ? <StatusBadge tone="warning">{normalized.issues.length} skipped values</StatusBadge> : null}
+            <StatusBadge tone="success">
+              {analytics.recordCount.toLocaleString()} {t(locale, "dashboard.normalizedRecords")}
+            </StatusBadge>
+            <StatusBadge tone="info">
+              {normalized.summary.scoreColumns} {t(locale, "dashboard.scoreColumns")}
+            </StatusBadge>
+            {normalized.issues.length ? (
+              <StatusBadge tone="warning">
+                {normalized.issues.length} {t(locale, "dashboard.skippedValues")}
+              </StatusBadge>
+            ) : null}
           </div>
         </div>
-        <button
-          className="inline-flex items-center gap-2 rounded border border-[#bec8c0] bg-white px-3 py-2 text-sm font-semibold transition hover:-translate-y-0.5 hover:bg-[#f1f4f1] hover:shadow-md"
-          type="button"
-          onClick={reset}
-        >
-          <RefreshCcw className="h-4 w-4" />
-          New upload
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <LanguageSwitcher />
+          <button
+            className="inline-flex items-center gap-2 rounded border border-[#bec8c0] bg-white px-3 py-2 text-sm font-semibold transition hover:-translate-y-0.5 hover:bg-[#f1f4f1] hover:shadow-md"
+            type="button"
+            onClick={reset}
+          >
+            <RefreshCcw className="h-4 w-4" />
+            {t(locale, "common.newUpload")}
+          </button>
+        </div>
       </div>
 
       <div className="reveal-up overflow-x-auto rounded-lg border border-[#bec8c0] bg-white p-1 shadow-sm" style={{ animationDelay: "70ms" }}>
@@ -76,7 +91,7 @@ export function Dashboard() {
               type="button"
               onClick={() => setWorkspaceMode(tab.id)}
             >
-              {tab.label}
+              {t(locale, tab.labelKey)}
             </button>
           ))}
         </div>
@@ -84,6 +99,7 @@ export function Dashboard() {
 
       <div key={workspaceMode} className="workspace-view">
         {workspaceMode === "overview" ? <OverviewWorkspace analytics={analytics} /> : null}
+        {workspaceMode === "individual" ? <IndividualWorkspace /> : null}
         {workspaceMode === "extra" ? <ExtraWorkspace /> : null}
         {workspaceMode === "exports" ? <ExportsWorkspace /> : null}
         {workspaceMode === "formulas" ? <FormulasWorkspace analytics={analytics} /> : null}
@@ -94,6 +110,7 @@ export function Dashboard() {
 }
 
 function OverviewWorkspace({ analytics }: { analytics: AnalyticsResult }) {
+  const { locale } = useAnalyticsStore();
   return (
     <section className="workspace-page flex flex-col gap-5">
       <Overview analytics={analytics} />
@@ -101,21 +118,21 @@ function OverviewWorkspace({ analytics }: { analytics: AnalyticsResult }) {
       <TrendIntelligence analytics={analytics} />
 
       <section className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
-        <CategoryPerformance analytics={analytics} />
-        <MasteryBreakdown analytics={analytics} />
+        <CategoryPerformance analytics={analytics} locale={locale} />
+        <MasteryBreakdown analytics={analytics} locale={locale} />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <ScoreDistribution analytics={analytics} />
-        <TrendChart analytics={analytics} />
+        <ScoreDistribution analytics={analytics} locale={locale} />
+        <TrendChart analytics={analytics} locale={locale} />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <SubjectComparison analytics={analytics} />
-        <ClusterChart analytics={analytics} />
+        <SubjectComparison analytics={analytics} locale={locale} />
+        <ClusterChart analytics={analytics} locale={locale} />
       </section>
 
-      <CategoryHeatmap analytics={analytics} />
+      <CategoryHeatmap analytics={analytics} locale={locale} />
 
       <AiSummaryPanel />
     </section>
@@ -123,20 +140,24 @@ function OverviewWorkspace({ analytics }: { analytics: AnalyticsResult }) {
 }
 
 function ExportsWorkspace() {
+  const { locale } = useAnalyticsStore();
   return (
     <section className="workspace-page flex flex-col gap-5">
       <div className="metric-panel interactive-panel reveal-up overflow-hidden">
         <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-[#9b4518]">Exports</p>
-            <h2 className="mt-1 text-2xl font-semibold">Download local reports and datasets</h2>
+            <p className="text-xs font-semibold uppercase tracking-normal text-[#9b4518]">{t(locale, "exports.kicker")}</p>
+            <h2 className="mt-1 text-2xl font-semibold">{t(locale, "exports.title")}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#4f5954]">
-              Exports replace backend persistence: download normalized records, deterministic analytics, AI summaries, and
-              polished PDF reports without storing classroom data on a server.
+              {t(locale, "exports.body")}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            {["Local", "Private", "Portable"].map((label) => (
+            {[
+              locale === "mn" ? "Дотоод" : "Local",
+              locale === "mn" ? "Нууцлалтай" : "Private",
+              locale === "mn" ? "Зөөврийн" : "Portable",
+            ].map((label) => (
               <div key={label} className="rounded border border-[#d9ded8] bg-[#f7faf7] px-3 py-3 text-sm font-semibold">
                 {label}
               </div>
@@ -151,6 +172,7 @@ function ExportsWorkspace() {
 }
 
 function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
+  const { locale } = useAnalyticsStore();
   const overall = analytics.trendSignals.overall;
   const improving = analytics.trendSignals.improving.slice(0, 4);
   const declining = analytics.trendSignals.declining.slice(0, 4);
@@ -159,14 +181,14 @@ function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
     {
       key: "improving",
       icon: <TrendingUp className="h-4 w-4" />,
-      title: "Improving categories",
+      title: t(locale, "trend.improvingCategories"),
       items: improving,
       tone: "up" as const,
     },
     {
       key: "declining",
       icon: <TrendingDown className="h-4 w-4" />,
-      title: "Declining categories",
+      title: t(locale, "trend.decliningCategories"),
       items: declining,
       tone: "down" as const,
     },
@@ -176,11 +198,13 @@ function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
     <section className="metric-panel interactive-panel reveal-up p-5 sm:p-6">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-normal text-[#0f5a55]">Trend Intelligence</p>
-          <h2 className="text-xl font-semibold">Past-to-present movement</h2>
+          <p className="text-xs font-semibold uppercase tracking-normal text-[#0f5a55]">{t(locale, "trend.kicker")}</p>
+          <h2 className="text-xl font-semibold">{t(locale, "trend.title")}</h2>
         </div>
         <span className="text-sm text-[#5b635f]">
-          {hasTrend ? `${overall.firstLabel} -> ${overall.latestLabel}` : "Needs at least two time or order segments"}
+          {hasTrend
+            ? `${localizeLabel(overall.firstLabel, locale)} -> ${localizeLabel(overall.latestLabel, locale)}`
+            : t(locale, "trend.needData")}
         </span>
       </div>
 
@@ -188,12 +212,12 @@ function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
         <div className="rounded border border-[#d9ded8] bg-[#f7faf7] p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-normal text-[#6b746f]">Overall movement</div>
-              <div className="mt-2 text-3xl font-semibold">{hasTrend ? formatSignedChange(overall.change) : "No signal"}</div>
+              <div className="text-xs font-semibold uppercase tracking-normal text-[#6b746f]">{t(locale, "trend.overall")}</div>
+              <div className="mt-2 text-3xl font-semibold">{hasTrend ? formatSignedChange(overall.change) : t(locale, "trend.noSignal")}</div>
               <div className="mt-1 text-sm text-[#4f5954]">
                 {hasTrend
-                  ? `${formatPercent(overall.firstAverage)} earlier to ${formatPercent(overall.latestAverage)} latest`
-                  : "Upload another dated or ordered dataset to compare movement."}
+                  ? `${formatPercent(overall.firstAverage)} ${t(locale, "trend.earlierToLatest")} ${formatPercent(overall.latestAverage)}`
+                  : t(locale, "trend.uploadMore")}
               </div>
             </div>
             <TrendBadge direction={overall.direction} />
@@ -208,8 +232,7 @@ function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
             />
           </div>
           <p className="mt-3 text-xs leading-5 text-[#6b746f]">
-            Trend movement compares the earliest available period against the latest. When dates are missing, the app uses
-            upload-order segments and reports that limitation.
+            {t(locale, "trend.note")}
           </p>
         </div>
 
@@ -227,8 +250,7 @@ function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
           </div>
         ) : (
           <div className="rounded border border-dashed border-[#d9ded8] bg-white p-5 text-sm leading-6 text-[#6b746f]">
-            No category improvement or decline trend yet. Add dated records, repeated assessments, or ordered uploads to
-            unlock category-level movement.
+            {t(locale, "trend.empty")}
           </div>
         )}
       </div>
@@ -237,12 +259,13 @@ function TrendIntelligence({ analytics }: { analytics: AnalyticsResult }) {
 }
 
 function TrendBadge({ direction }: { direction: AnalyticsResult["trend"]["direction"] }) {
+  const { locale } = useAnalyticsStore();
   return (
     <span
       className="rounded px-2 py-1 text-xs font-semibold uppercase tracking-normal text-white"
       style={{ background: trendColor(direction) }}
     >
-      {direction.replace("_", " ")}
+      {localizeDirection(direction, locale)}
     </span>
   );
 }
@@ -258,6 +281,7 @@ function TrendList({
   items: AnalyticsResult["trendSignals"]["byTopic"];
   tone: "up" | "down";
 }) {
+  const { locale } = useAnalyticsStore();
   return (
     <div className="rounded border border-[#d9ded8] p-4">
       <h3 className="mb-3 inline-flex items-center gap-2 font-semibold">
@@ -268,13 +292,14 @@ function TrendList({
         {items.map((item) => (
           <div key={item.label} className="rounded border border-[#e6ebe5] bg-white p-3 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <span className="truncate font-semibold">{item.label}</span>
+              <span className="truncate font-semibold">{localizeLabel(item.label, locale)}</span>
               <span className={tone === "up" ? "font-semibold text-[#16726d]" : "font-semibold text-[#b63f3f]"}>
                 {formatSignedChange(item.change)}
               </span>
             </div>
             <div className="mt-1 text-xs text-[#6b746f]">
-              {formatPercent(item.firstAverage)} to {formatPercent(item.latestAverage)} | {item.points} points
+              {formatPercent(item.firstAverage)} {locale === "mn" ? "-с" : "to"} {formatPercent(item.latestAverage)} |{" "}
+              {item.points} {locale === "mn" ? "цэг" : "points"}
             </div>
           </div>
         ))}
@@ -284,15 +309,16 @@ function TrendList({
 }
 
 function Overview({ analytics }: { analytics: AnalyticsResult }) {
+  const { locale } = useAnalyticsStore();
   const metrics = [
-    ["Average", formatPercent(analytics.overview.mean), analytics.overview.mean, "#16726d"],
-    ["Median", formatPercent(analytics.overview.median), analytics.overview.median, "#2f69a1"],
-    ["Std dev", formatNumber(analytics.overview.standardDeviation), 100 - analytics.overview.standardDeviation, "#c65d21"],
-    ["Mastery", formatPercent(analytics.overview.masteryRate), analytics.overview.masteryRate, "#b8860b"],
-    ["Consistency", formatPercent(analytics.overview.consistencyScore), analytics.overview.consistencyScore, "#7a5aa6"],
+    [t(locale, "overview.average"), formatPercent(analytics.overview.mean), analytics.overview.mean, "#16726d"],
+    [t(locale, "overview.median"), formatPercent(analytics.overview.median), analytics.overview.median, "#2f69a1"],
+    [t(locale, "common.stdDev"), formatNumber(analytics.overview.standardDeviation), 100 - analytics.overview.standardDeviation, "#c65d21"],
+    [t(locale, "overview.mastery"), formatPercent(analytics.overview.masteryRate), analytics.overview.masteryRate, "#b8860b"],
+    [t(locale, "overview.consistency"), formatPercent(analytics.overview.consistencyScore), analytics.overview.consistencyScore, "#7a5aa6"],
     [
-      "Trend",
-      analytics.trend.direction.replace("_", " "),
+      t(locale, "common.trend"),
+      localizeDirection(analytics.trend.direction, locale),
       analytics.trend.direction === "improving" ? 82 : analytics.trend.direction === "declining" ? 34 : 58,
       "#b63f3f",
     ],
@@ -344,11 +370,14 @@ function trendColor(direction: AnalyticsResult["trend"]["direction"]) {
   return "#6b746f";
 }
 
-function CategoryPerformance({ analytics }: { analytics: AnalyticsResult }) {
-  const data = analytics.chartData.topicPerformance.slice(0, 12);
+function CategoryPerformance({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
+  const data = analytics.chartData.topicPerformance.slice(0, 12).map((item) => ({
+    ...item,
+    topic: localizeLabel(item.topic, locale),
+  }));
 
   return (
-    <ChartShell title="Category Performance">
+    <ChartShell title={t(locale, "overview.categoryPerformance")}>
       <ResponsiveContainer width="100%" height={320}>
         <BarChart data={data} margin={{ top: 18, right: 24, left: 18, bottom: 70 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
@@ -356,19 +385,19 @@ function CategoryPerformance({ analytics }: { analytics: AnalyticsResult }) {
           <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
           <Tooltip formatter={(value) => `${value}%`} />
           <Legend />
-          <Bar dataKey="average" name="Average" fill="#16726d" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="masteryRate" name="Mastery" fill="#2f69a1" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="average" name={t(locale, "common.average")} fill="#16726d" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="masteryRate" name={t(locale, "common.mastery")} fill="#2f69a1" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartShell>
   );
 }
 
-function MasteryBreakdown({ analytics }: { analytics: AnalyticsResult }) {
-  const data = analytics.masteryBreakdown;
+function MasteryBreakdown({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
+  const data = analytics.masteryBreakdown.map((item) => ({ ...item, label: localizeLabel(item.label, locale) }));
 
   return (
-    <ChartShell title="Mastery Breakdown">
+    <ChartShell title={t(locale, "overview.masteryBreakdown")}>
       <ResponsiveContainer width="100%" height={320}>
         <PieChart margin={{ top: 12, right: 18, bottom: 18, left: 18 }}>
           <Pie data={data} dataKey="count" nameKey="label" innerRadius={70} outerRadius={110} paddingAngle={2}>
@@ -384,49 +413,53 @@ function MasteryBreakdown({ analytics }: { analytics: AnalyticsResult }) {
   );
 }
 
-function ScoreDistribution({ analytics }: { analytics: AnalyticsResult }) {
+function ScoreDistribution({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
   return (
-    <ChartShell title="Score Distribution">
+    <ChartShell title={t(locale, "overview.scoreDistribution")}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={analytics.chartData.distribution} margin={{ top: 16, right: 24, left: 18, bottom: 12 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
           <XAxis dataKey="label" />
           <YAxis allowDecimals={false} />
           <Tooltip />
-          <Bar dataKey="count" name="Records" fill="#c65d21" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="count" name={t(locale, "common.records")} fill="#c65d21" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartShell>
   );
 }
 
-function TrendChart({ analytics }: { analytics: AnalyticsResult }) {
+function TrendChart({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
   const hasData = analytics.chartData.trend.length > 1;
+  const trendData = analytics.chartData.trend.map((point) => ({ ...point, date: localizeLabel(point.date, locale) }));
 
   return (
-    <ChartShell title="Trend Over Time">
+    <ChartShell title={t(locale, "overview.trendOverTime")}>
       {hasData ? (
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={analytics.chartData.trend} margin={{ top: 16, right: 26, left: 18, bottom: 12 }}>
+          <LineChart data={trendData} margin={{ top: 16, right: 26, left: 18, bottom: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
             <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
             <Tooltip formatter={(value) => `${value}%`} />
-            <Line type="monotone" dataKey="average" name="Average" stroke="#2f69a1" strokeWidth={2} dot />
+            <Line type="monotone" dataKey="average" name={t(locale, "common.average")} stroke="#2f69a1" strokeWidth={2} dot />
           </LineChart>
         </ResponsiveContainer>
       ) : (
-        <EmptyChart icon={<FileText className="h-5 w-5" />} label="No date mapping" />
+        <EmptyChart icon={<FileText className="h-5 w-5" />} label={t(locale, "overview.noDateMapping")} />
       )}
     </ChartShell>
   );
 }
 
-function SubjectComparison({ analytics }: { analytics: AnalyticsResult }) {
-  const data = analytics.chartData.subjectComparison.slice(0, 10);
+function SubjectComparison({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
+  const data = analytics.chartData.subjectComparison.slice(0, 10).map((item) => ({
+    ...item,
+    subject: localizeLabel(item.subject, locale),
+  }));
 
   return (
-    <ChartShell title="Subject Comparisons">
+    <ChartShell title={t(locale, "overview.subjectComparisons")}>
       {data.length ? (
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data} layout="vertical" margin={{ top: 16, right: 24, left: 48, bottom: 12 }}>
@@ -438,23 +471,25 @@ function SubjectComparison({ analytics }: { analytics: AnalyticsResult }) {
           </BarChart>
         </ResponsiveContainer>
       ) : (
-        <EmptyChart icon={<FileText className="h-5 w-5" />} label="No subject mapping" />
+        <EmptyChart icon={<FileText className="h-5 w-5" />} label={t(locale, "overview.noSubjectMapping")} />
       )}
     </ChartShell>
   );
 }
 
-function ClusterChart({ analytics }: { analytics: AnalyticsResult }) {
+function ClusterChart({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
+  const data = analytics.chartData.clusters.map((cluster) => ({ ...cluster, label: localizeLabel(cluster.label, locale) }));
+
   return (
-    <ChartShell title="Performance Clusters">
+    <ChartShell title={t(locale, "overview.performanceClusters")}>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={analytics.chartData.clusters} margin={{ top: 16, right: 24, left: 18, bottom: 12 }}>
+        <BarChart data={data} margin={{ top: 16, right: 24, left: 18, bottom: 12 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
           <XAxis dataKey="label" />
           <YAxis allowDecimals={false} />
           <Tooltip />
-          <Bar dataKey="count" name="Records" radius={[4, 4, 0, 0]}>
-            {analytics.chartData.clusters.map((cluster, index) => (
+          <Bar dataKey="count" name={t(locale, "common.records")} radius={[4, 4, 0, 0]}>
+            {data.map((cluster, index) => (
               <Cell key={cluster.id} fill={chartColors[index % chartColors.length]} />
             ))}
           </Bar>
@@ -464,14 +499,14 @@ function ClusterChart({ analytics }: { analytics: AnalyticsResult }) {
   );
 }
 
-function CategoryHeatmap({ analytics }: { analytics: AnalyticsResult }) {
+function CategoryHeatmap({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
   const topics = analytics.topicStats.slice(0, 24);
 
   return (
     <section className="metric-panel p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Category Heatmap</h2>
-        <span className="text-xs text-[#5b635f]">Average score</span>
+        <h2 className="text-lg font-semibold">{t(locale, "overview.categoryHeatmap")}</h2>
+        <span className="text-xs text-[#5b635f]">{t(locale, "overview.averageScore")}</span>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         {topics.map((topic) => (
@@ -480,9 +515,11 @@ function CategoryHeatmap({ analytics }: { analytics: AnalyticsResult }) {
             className="interactive-panel reveal-up rounded border border-[#d9ded8] p-3 text-sm transition hover:-translate-y-0.5"
             style={{ background: heatColor(topic.average) }}
           >
-            <div className="truncate font-semibold">{topic.topic}</div>
+            <div className="truncate font-semibold">{localizeLabel(topic.topic, locale)}</div>
             <div className="mt-2 text-xl font-semibold">{formatPercent(topic.average)}</div>
-            <div className="mt-1 text-xs text-[#3f4642]">{topic.count} records</div>
+            <div className="mt-1 text-xs text-[#3f4642]">
+              {topic.count} {locale === "mn" ? "бичлэг" : "records"}
+            </div>
           </div>
         ))}
       </div>

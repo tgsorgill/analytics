@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { Dashboard } from "@/components/Dashboard";
 import { CsvUpload } from "@/components/CsvUpload";
+import { LanguageGate } from "@/components/LanguageGate";
 import { normalizeRows } from "@/lib/normalize";
 import { validateMappings } from "@/lib/mapping";
 import { computeAnalyticsInWorker } from "@/hooks/useAnalyticsWorker";
 import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 import { configuredHfToken, defaultAiModel, requestAiInsight } from "@/lib/huggingFace";
+import { t } from "@/lib/i18n";
 
 export function AnalyticsApp() {
   const {
@@ -25,8 +27,10 @@ export function AnalyticsApp() {
     setError,
     reset,
     error,
+    locale,
   } = useAnalyticsStore();
   const autoRunKey = useRef<string | null>(null);
+  const mounted = useClientMounted();
 
   const runAnalytics = useCallback(async () => {
     if (!parsedCsv) {
@@ -66,24 +70,26 @@ export function AnalyticsApp() {
           token: configuredHfToken,
           model: defaultAiModel,
           analytics,
+          locale,
         })
           .then(setAiInsight)
           .catch(() => {
             setAiInsight({
-              summary: "AI summary was unavailable for this run. Deterministic charts and exports are still available.",
+              summary: t(locale, "ai.unavailable"),
               trends: [],
               instructionalFocus: [],
-              cautions: ["AI did not return a usable classroom summary."],
+              cautions: [locale === "mn" ? "AI ашиглах боломжтой ангийн хураангуй буцаасангүй." : "AI did not return a usable classroom summary."],
               chartSuggestions: [],
             });
           });
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Analytics failed.");
+      setError(caught instanceof Error ? caught.message : locale === "mn" ? "Аналитик амжилтгүй боллоо." : "Analytics failed.");
     } finally {
       setAnalyzing(false);
     }
   }, [
+    locale,
     mappings,
     parsedCsv,
     setAiInsight,
@@ -115,11 +121,17 @@ export function AnalyticsApp() {
     }
   }, [mappings, parsedCsv, phase, runAnalytics]);
 
+  if (!mounted) {
+    return <div className="min-h-screen" />;
+  }
+
   return (
     <div className="min-h-screen">
+      <LanguageGate />
       {phase === "upload" ? <CsvUpload /> : null}
       {phase === "mapping" ? (
         <AutoProcessingPanel
+          locale={locale}
           canRun={parsedCsv ? validateMappings(mappings).canProceed : false}
           isAnalyzing={isAnalyzing}
           onRetry={() => void runAnalytics()}
@@ -136,12 +148,25 @@ export function AnalyticsApp() {
   );
 }
 
+function useClientMounted() {
+  return useSyncExternalStore(
+    (notify) => {
+      const id = window.setTimeout(notify, 0);
+      return () => window.clearTimeout(id);
+    },
+    () => true,
+    () => false,
+  );
+}
+
 function AutoProcessingPanel({
+  locale,
   canRun,
   isAnalyzing,
   onRetry,
   onReset,
 }: {
+  locale: ReturnType<typeof useAnalyticsStore.getState>["locale"];
   canRun: boolean;
   isAnalyzing: boolean;
   onRetry: () => void;
@@ -150,14 +175,12 @@ function AutoProcessingPanel({
   return (
     <section className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center gap-4 px-4 py-10">
       <div className="metric-panel p-6">
-        <p className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">Automatic interpretation</p>
+        <p className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">{t(locale, "processing.kicker")}</p>
         <h1 className="mt-2 text-3xl font-semibold">
-          {canRun ? "Preparing deterministic analytics." : "No score or metric column was found."}
+          {canRun ? t(locale, "processing.readyTitle") : t(locale, "processing.blockedTitle")}
         </h1>
         <p className="mt-3 text-sm leading-6 text-[#4f5954]">
-          {canRun
-            ? "The app interpreted the column headers automatically and is running local calculations."
-            : "Try a CSV with at least one score-like column such as percentage, points earned, grade, average, rating, or proficiency."}
+          {canRun ? t(locale, "processing.readyBody") : t(locale, "processing.blockedBody")}
         </p>
         <div className="mt-5 flex gap-2">
           {canRun ? (
@@ -167,7 +190,7 @@ function AutoProcessingPanel({
               disabled={isAnalyzing}
               onClick={onRetry}
             >
-              {isAnalyzing ? "Analyzing" : "Run now"}
+              {isAnalyzing ? t(locale, "processing.analyzing") : t(locale, "processing.runNow")}
             </button>
           ) : null}
           <button
@@ -175,7 +198,7 @@ function AutoProcessingPanel({
             type="button"
             onClick={onReset}
           >
-            New upload
+            {t(locale, "common.newUpload")}
           </button>
         </div>
       </div>

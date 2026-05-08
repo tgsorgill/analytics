@@ -1,10 +1,11 @@
 "use client";
 
 import { ArrowRight, Check, RefreshCcw, ShieldAlert } from "lucide-react";
-import { fieldLabels, internalFields, type ColumnInference, type ColumnMapping, type HeaderDerivation, type InternalField } from "@/lib/types";
+import { internalFields, type ColumnInference, type ColumnMapping, type HeaderDerivation, type InternalField } from "@/lib/types";
 import { validateMappings } from "@/lib/mapping";
 import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 import { StatusBadge } from "@/components/StatusBadge";
+import { fieldLabel, t } from "@/lib/i18n";
 import { cn, formatPercent } from "@/lib/utils";
 
 type MappingReviewProps = {
@@ -14,6 +15,7 @@ type MappingReviewProps = {
 export function MappingReview({ onRunAnalytics }: MappingReviewProps) {
   const {
     parsedCsv,
+    locale,
     inferences,
     mappings,
     updateMapping,
@@ -46,7 +48,7 @@ export function MappingReview({ onRunAnalytics }: MappingReviewProps) {
       confidence: candidate?.confidence ?? (field === "ignore" ? 1 : 0.5),
       confirmed: false,
       headerDerivation: field === "score" ? candidate?.headerDerivation ?? "none" : "none",
-      evidence: candidate?.evidence ?? ["Teacher selected this mapping manually"],
+            evidence: candidate?.evidence ?? [locale === "mn" ? "Багш энэ зураглалыг гараар сонгосон" : "Teacher selected this mapping manually"],
     });
   }
 
@@ -62,15 +64,18 @@ export function MappingReview({ onRunAnalytics }: MappingReviewProps) {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">Mapping help</p>
+          <p className="text-sm font-semibold uppercase tracking-normal text-[#0f5a55]">{t(locale, "mapping.kicker")}</p>
           <h1 className="text-3xl font-semibold">
-            {validation.canProceed ? "Review the automatic interpretation." : "Choose the score or metric column."}
+            {validation.canProceed ? t(locale, "mapping.reviewTitle") : t(locale, "mapping.chooseScoreTitle")}
           </h1>
           <p className="mt-2 text-sm text-[#5b635f]">
             {parsedCsv.fileName} | {parsedCsv.rowCount.toLocaleString()} rows | {parsedCsv.columns.length} columns
           </p>
           <p className="mt-1 text-sm text-[#5b635f]">
-            Header row {parsedCsv.detectedHeaderRow} detected with {Math.round(parsedCsv.headerConfidence * 100)}% confidence
+            {t(locale, "mapping.headerDetected", {
+              row: parsedCsv.detectedHeaderRow,
+              confidence: Math.round(parsedCsv.headerConfidence * 100),
+            })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -80,7 +85,7 @@ export function MappingReview({ onRunAnalytics }: MappingReviewProps) {
             onClick={reset}
           >
             <RefreshCcw className="h-4 w-4" />
-            New upload
+            {t(locale, "common.newUpload")}
           </button>
           <button
             className="inline-flex items-center gap-2 rounded bg-[#16726d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f5a55] disabled:cursor-not-allowed disabled:bg-[#90aaa7]"
@@ -89,43 +94,43 @@ export function MappingReview({ onRunAnalytics }: MappingReviewProps) {
             disabled={isAnalyzing}
           >
             <Check className="h-4 w-4" />
-            {isAnalyzing ? "Analyzing" : validation.canProceed ? "Run analytics" : "Use this mapping"}
+            {isAnalyzing ? t(locale, "processing.analyzing") : validation.canProceed ? t(locale, "mapping.run") : t(locale, "mapping.use")}
           </button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {validation.canProceed ? <StatusBadge tone="success">Ready for analytics</StatusBadge> : null}
+        {validation.canProceed ? <StatusBadge tone="success">{t(locale, "mapping.ready")}</StatusBadge> : null}
         {validation.needsConfirmation.length ? (
-          <StatusBadge tone="warning">{validation.needsConfirmation.length} confirmations needed</StatusBadge>
+          <StatusBadge tone="warning">{t(locale, "mapping.confirmationsNeeded", { count: validation.needsConfirmation.length })}</StatusBadge>
         ) : null}
         {parsedCsv.parseErrors.length ? (
-          <StatusBadge tone="warning">{parsedCsv.parseErrors.length} parse warnings</StatusBadge>
+          <StatusBadge tone="warning">{t(locale, "mapping.parseWarnings", { count: parsedCsv.parseErrors.length })}</StatusBadge>
         ) : null}
       </div>
 
       {validation.errors.length || validation.warnings.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {validation.errors.length ? (
-            <MessageList tone="danger" title="Blocked" messages={validation.errors} />
+            <MessageList tone="danger" title={t(locale, "mapping.blocked")} messages={validation.errors} />
           ) : null}
           {validation.warnings.length ? (
-            <MessageList tone="warning" title="Warnings" messages={validation.warnings} />
+            <MessageList tone="warning" title={t(locale, "mapping.warnings")} messages={validation.warnings} />
           ) : null}
         </div>
       ) : null}
 
       {parsedCsv.structureNotes.length ? (
-        <MessageList tone="warning" title="CSV structure notes" messages={parsedCsv.structureNotes} />
+        <MessageList tone="warning" title={t(locale, "mapping.structureNotes")} messages={parsedCsv.structureNotes} />
       ) : null}
 
       <div className="overflow-hidden rounded-lg border border-[#d9ded8] bg-white">
         <div className="grid grid-cols-[1.1fr_1fr_1fr_0.8fr_1fr] gap-0 border-b border-[#d9ded8] bg-[#f1f4f1] px-4 py-3 text-xs font-semibold uppercase tracking-normal text-[#4f5954]">
-          <div>Uploaded column</div>
-          <div>Flexible role</div>
-          <div>Confidence</div>
-          <div>Wide-column label</div>
-          <div>Confirmation</div>
+          <div>{t(locale, "mapping.uploadedColumn")}</div>
+          <div>{t(locale, "mapping.flexibleRole")}</div>
+          <div>{t(locale, "mapping.confidence")}</div>
+          <div>{t(locale, "mapping.wideLabel")}</div>
+          <div>{t(locale, "mapping.confirmation")}</div>
         </div>
         <div className="max-h-[560px] overflow-auto scrollbar-stable">
           {visibleMappings.map((mapping) => {
@@ -146,7 +151,7 @@ export function MappingReview({ onRunAnalytics }: MappingReviewProps) {
       {!validation.canProceed && visibleMappings.length < mappings.length ? (
         <details className="rounded-lg border border-[#d9ded8] bg-white p-4">
           <summary className="cursor-pointer text-sm font-semibold">
-            Show {mappings.length - visibleMappings.length} automatically interpreted column(s)
+            {t(locale, "mapping.showAuto", { count: mappings.length - visibleMappings.length })}
           </summary>
           <div className="mt-4 overflow-hidden rounded border border-[#d9ded8]">
             {mappings
@@ -183,6 +188,7 @@ function MappingRow({
   onChangeField: (column: string, field: InternalField) => void;
   onChangeMapping: (column: string, patch: Partial<ColumnMapping>) => void;
 }) {
+  const { locale } = useAnalyticsStore();
   const needsConfirmation = mapping.field === "score" && mapping.confidence < 0.7 && !mapping.confirmed;
 
   return (
@@ -197,13 +203,13 @@ function MappingRow({
               </span>
             ))
           ) : (
-            <span className="text-xs text-[#707a74]">No sample</span>
+            <span className="text-xs text-[#707a74]">{t(locale, "mapping.noSample")}</span>
           )}
         </div>
         {inference?.ambiguous ? (
           <div className="mt-2 inline-flex items-center gap-1 text-xs text-[#775100]">
             <ShieldAlert className="h-3.5 w-3.5" />
-            Ambiguous
+            {t(locale, "mapping.ambiguous")}
           </div>
         ) : null}
       </div>
@@ -216,7 +222,7 @@ function MappingRow({
         >
           {internalFields.map((field) => (
             <option key={field} value={field}>
-              {fieldLabels[field]}
+              {fieldLabel(field, locale)}
             </option>
           ))}
         </select>
@@ -230,7 +236,7 @@ function MappingRow({
                 onClick={() => onChangeField(mapping.column, candidate.mappedTo)}
               >
                 <ArrowRight className="h-3 w-3" />
-                {fieldLabels[candidate.mappedTo]} | {formatPercent(candidate.confidence * 100, 0)}
+                {fieldLabel(candidate.mappedTo, locale)} | {formatPercent(candidate.confidence * 100, 0)}
               </button>
             ))}
           </div>
@@ -240,7 +246,7 @@ function MappingRow({
       <div className="pr-4">
         <div className="mb-2 flex items-center justify-between text-xs">
           <span>{formatPercent(mapping.confidence * 100, 0)}</span>
-          {needsConfirmation ? <span className="text-[#775100]">Needs confirmation</span> : null}
+          {needsConfirmation ? <span className="text-[#775100]">{t(locale, "mapping.needsConfirmation")}</span> : null}
         </div>
         <div className="h-2 rounded bg-[#e6ebe5]">
           <div
@@ -270,12 +276,12 @@ function MappingRow({
             })
           }
         >
-          <option value="none">None</option>
-          <option value="category">Category</option>
-          <option value="metric">Metric</option>
-          <option value="topic">Topic</option>
-          <option value="assessment">Assessment</option>
-          <option value="subject">Subject</option>
+          <option value="none">{locale === "mn" ? "Үгүй" : "None"}</option>
+          <option value="category">{fieldLabel("category", locale)}</option>
+          <option value="metric">{fieldLabel("metricLabel", locale)}</option>
+          <option value="topic">{fieldLabel("topic", locale)}</option>
+          <option value="assessment">{fieldLabel("assessment", locale)}</option>
+          <option value="subject">{fieldLabel("subject", locale)}</option>
         </select>
       </div>
 
@@ -286,7 +292,7 @@ function MappingRow({
           checked={mapping.confirmed}
           onChange={(event) => onChangeMapping(mapping.column, { confirmed: event.target.checked })}
         />
-        Confirmed
+        {t(locale, "mapping.confirmed")}
       </label>
     </div>
   );
@@ -311,7 +317,7 @@ function MessageList({ tone, title, messages }: { tone: "danger" | "warning"; ti
 }
 
 function DataPreview() {
-  const { parsedCsv } = useAnalyticsStore();
+  const { locale, parsedCsv } = useAnalyticsStore();
   if (!parsedCsv) {
     return null;
   }
@@ -320,7 +326,7 @@ function DataPreview() {
 
   return (
     <div className="overflow-hidden rounded-lg border border-[#d9ded8] bg-white">
-      <div className="border-b border-[#d9ded8] bg-[#f1f4f1] px-4 py-3 text-sm font-semibold">CSV preview</div>
+      <div className="border-b border-[#d9ded8] bg-[#f1f4f1] px-4 py-3 text-sm font-semibold">{t(locale, "mapping.csvPreview")}</div>
       <div className="overflow-auto">
         <table className="min-w-full text-left text-xs">
           <thead>

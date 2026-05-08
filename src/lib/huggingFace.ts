@@ -37,8 +37,8 @@ type AiColumnRoleResponse = {
   error?: string;
 };
 
-export async function requestAiInsight({ token, model, analytics }: AiRequest): Promise<AiInsight> {
-  const prompt = buildAiPrompt(analytics);
+export async function requestAiInsight({ token, model, analytics, locale = "en" }: AiRequest): Promise<AiInsight> {
+  const prompt = buildAiPrompt(analytics, locale);
   const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -54,7 +54,9 @@ export async function requestAiInsight({ token, model, analytics }: AiRequest): 
         {
           role: "system",
           content:
-            "You are a classroom analytics assistant for teachers, not an evaluator of children. Summarize aggregate findings only. Do not act as a psychologist, doctor, IQ evaluator, disciplinary authority, future predictor, or automated decision-maker. Do not analyze individual students, infer traits, or make grading, placement, diagnosis, discipline, retention, or eligibility decisions.",
+            locale === "mn"
+              ? "You are a classroom analytics assistant for teachers, not an evaluator of children. Summarize aggregate findings only in Mongolian Cyrillic. Do not act as a psychologist, doctor, IQ evaluator, disciplinary authority, future predictor, or automated decision-maker. Do not analyze individual students, infer traits, or make grading, placement, diagnosis, discipline, retention, or eligibility decisions."
+              : "You are a classroom analytics assistant for teachers, not an evaluator of children. Summarize aggregate findings only. Do not act as a psychologist, doctor, IQ evaluator, disciplinary authority, future predictor, or automated decision-maker. Do not analyze individual students, infer traits, or make grading, placement, diagnosis, discipline, retention, or eligibility decisions.",
         },
         {
           role: "user",
@@ -78,7 +80,7 @@ export async function requestAiInsight({ token, model, analytics }: AiRequest): 
   return parseAiInsight(text);
 }
 
-export async function requestExtraAiInsight({ token, model, extraAnalytics }: ExtraAiRequest): Promise<AiInsight> {
+export async function requestExtraAiInsight({ token, model, extraAnalytics, locale = "en" }: ExtraAiRequest): Promise<AiInsight> {
   const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -94,11 +96,13 @@ export async function requestExtraAiInsight({ token, model, extraAnalytics }: Ex
         {
           role: "system",
           content:
-            "You explain advanced aggregate classroom analytics for teachers. You never diagnose, evaluate children, infer traits, predict futures, criticize teacher quality, assign blame, or make automated decisions.",
+            locale === "mn"
+              ? "You explain advanced aggregate classroom analytics for teachers in Mongolian Cyrillic. You never diagnose, evaluate children, infer traits, predict futures, criticize teacher quality, assign blame, or make automated decisions."
+              : "You explain advanced aggregate classroom analytics for teachers. You never diagnose, evaluate children, infer traits, predict futures, criticize teacher quality, assign blame, or make automated decisions.",
         },
         {
           role: "user",
-          content: buildExtraAiPrompt(extraAnalytics),
+          content: buildExtraAiPrompt(extraAnalytics, locale),
         },
       ],
     }),
@@ -211,6 +215,7 @@ function buildColumnMappingPrompt(inferences: ColumnInference[]) {
     "",
     "Important:",
     "- Use score for numeric/percentage/letter-grade/proficiency metric columns.",
+    "- Support both English and Mongolian school headers. Mongolian examples: сурагч, нэр, дугаар, хичээл, сэдэв, чадвар, стандарт, шалгалт, даалгавар, оноо, хувь, дүн, авсан оноо, нийт оноо, огноо, улирал, бүлэг.",
     "- Use maxScore for possible points, denominator, or total possible columns.",
     "- Use category/topic/subject/assessment/group/term/metricLabel/context/notes for grouping or descriptive columns.",
     "- Never classify student, learner, pupil, child, name, roster, or ID headers as score, category, topic, metricLabel, context, or notes. Use studentName or studentId.",
@@ -245,6 +250,21 @@ function normalizeRole(role: unknown): InternalField | null {
     class: "group",
     period: "term",
     comment: "notes",
+    оноо: "score",
+    хувь: "score",
+    дүн: "score",
+    үнэлгээ: "score",
+    сэдэв: "topic",
+    стандарт: "category",
+    чадвар: "category",
+    хичээл: "subject",
+    шалгалт: "assessment",
+    даалгавар: "assessment",
+    нэр: "studentName",
+    дугаар: "studentId",
+    огноо: "date",
+    улирал: "term",
+    тэмдэглэл: "notes",
   };
 
   if (aliases[aliasKey]) {

@@ -1,7 +1,12 @@
 import type { AiInsight, AnalyticsResult, ExtraAnalyticsResult } from "@/lib/types";
+import type { Locale } from "@/lib/i18n";
 
-export function buildAiPrompt(analytics: AnalyticsResult) {
+export function buildAiPrompt(analytics: AnalyticsResult, locale: Locale = "en") {
   const payload = sanitizeAnalyticsForAi(analytics);
+  const responseLanguage =
+    locale === "mn"
+      ? "Return every natural-language value in Mongolian Cyrillic. Keep JSON keys exactly in English."
+      : "Return every natural-language value in English. Keep JSON keys exactly in English.";
 
   return [
     "You are a classroom analytics assistant for teachers.",
@@ -25,6 +30,7 @@ export function buildAiPrompt(analytics: AnalyticsResult) {
     "- Put more emphasis on trend signals: compare earliest/latest values, identify improvement or decline, and explain when date/order limitations apply.",
     "- Focus on classroom patterns, instructional next steps, limitations, and questions a teacher might investigate.",
     "- AI may suggest chart types, but must not generate visuals.",
+    `- ${responseLanguage}`,
     "- Return compact JSON with this exact shape:",
     JSON.stringify(
       {
@@ -70,7 +76,7 @@ export function sanitizeAnalyticsForAi(analytics: AnalyticsResult) {
   };
 }
 
-export function buildExtraAiPrompt(extraAnalytics: ExtraAnalyticsResult) {
+export function buildExtraAiPrompt(extraAnalytics: ExtraAnalyticsResult, locale: Locale = "en") {
   const payload = {
     recordCount: extraAnalytics.recordCount,
     coverage: extraAnalytics.coverage,
@@ -98,6 +104,9 @@ export function buildExtraAiPrompt(extraAnalytics: ExtraAnalyticsResult) {
     "- Stay aggregate, cautious, and evidence-based.",
     "- Give progression and momentum signals priority over present-only status summaries.",
     "- Use terms like relationship, alignment, imbalance, volatility, pattern, and signal.",
+    locale === "mn"
+      ? "- Return every natural-language value in Mongolian Cyrillic. Keep JSON keys exactly in English."
+      : "- Return every natural-language value in English. Keep JSON keys exactly in English.",
     "- Return compact JSON with keys: summary, trends, instructionalFocus, cautions, chartSuggestions.",
   ].join("\n");
 }

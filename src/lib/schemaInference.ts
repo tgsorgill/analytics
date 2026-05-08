@@ -18,6 +18,11 @@ const keywordMap: Record<InternalField, string[]> = {
     "sis",
     "number",
     "roster",
+    "сурагчийн id",
+    "сурагчийн дугаар",
+    "дугаар",
+    "бүртгэлийн дугаар",
+    "код",
   ],
   studentName: [
     "student",
@@ -32,8 +37,14 @@ const keywordMap: Record<InternalField, string[]> = {
     "full name",
     "last name",
     "first name",
+    "сурагч",
+    "сурагчийн нэр",
+    "нэр",
+    "овог нэр",
+    "овог",
+    "өөрийн нэр",
   ],
-  subject: ["subject", "course", "class", "discipline", "content area", "area", "department"],
+  subject: ["subject", "course", "class", "discipline", "content area", "area", "department", "хичээл", "судлагдахуун", "курс", "анги"],
   assessment: [
     "assessment",
     "assignment",
@@ -54,6 +65,17 @@ const keywordMap: Record<InternalField, string[]> = {
     "midterm",
     "final",
     "portfolio",
+    "үнэлгээ",
+    "шалгалт",
+    "сорил",
+    "тест",
+    "даалгавар",
+    "гэрийн даалгавар",
+    "анги ажил",
+    "төсөл",
+    "явцын",
+    "эцсийн",
+    "улирлын шалгалт",
   ],
   topic: [
     "topic",
@@ -72,6 +94,15 @@ const keywordMap: Record<InternalField, string[]> = {
     "criterion",
     "rubric",
     "indicator",
+    "сэдэв",
+    "стандарт",
+    "чадвар",
+    "чадамж",
+    "зорилт",
+    "нэгж",
+    "агуулга",
+    "үзүүлэлт",
+    "шалгуур",
   ],
   category: [
     "category",
@@ -88,6 +119,13 @@ const keywordMap: Record<InternalField, string[]> = {
     "objective",
     "unit",
     "module",
+    "ангилал",
+    "төрөл",
+    "стандарт",
+    "чадвар",
+    "чадамж",
+    "шалгуур",
+    "нэгж",
   ],
   group: [
     "group",
@@ -101,11 +139,17 @@ const keywordMap: Record<InternalField, string[]> = {
     "teacher",
     "campus",
     "school",
+    "бүлэг",
+    "анги",
+    "хэсэг",
+    "түвшин",
+    "сургууль",
+    "багш",
   ],
-  term: ["term", "semester", "quarter", "trimester", "cycle", "grading period", "week", "month", "year", "session"],
-  metricLabel: ["metric", "measure", "indicator", "criterion", "component", "category", "grade item", "task name", "item"],
-  context: ["context", "notes", "comment", "status", "level", "track", "program", "intervention", "accommodation"],
-  notes: ["note", "notes", "comment", "comments", "remark", "remarks", "feedback", "observation"],
+  term: ["term", "semester", "quarter", "trimester", "cycle", "grading period", "week", "month", "year", "session", "улирал", "хагас жил", "сар", "долоо хоног", "жил", "үе"],
+  metricLabel: ["metric", "measure", "indicator", "criterion", "component", "category", "grade item", "task name", "item", "хэмжүүр", "үзүүлэлт", "шалгуур", "бүрэлдэхүүн", "дүнгийн зүйл"],
+  context: ["context", "notes", "comment", "status", "level", "track", "program", "intervention", "accommodation", "контекст", "төлөв", "түвшин", "хөтөлбөр", "дэмжлэг"],
+  notes: ["note", "notes", "comment", "comments", "remark", "remarks", "feedback", "observation", "тэмдэглэл", "тайлбар", "санал", "ажиглалт"],
   score: [
     "score",
     "percent",
@@ -127,9 +171,21 @@ const keywordMap: Record<InternalField, string[]> = {
     "final grade",
     "term grade",
     "letter grade",
+    "оноо",
+    "хувь",
+    "дүн",
+    "авсан",
+    "авсан оноо",
+    "зөв",
+    "дүнгийн хувь",
+    "үнэлгээ",
+    "түвшин",
+    "эзэмшил",
+    "дундаж",
+    "эцсийн дүн",
   ],
-  maxScore: ["max", "maximum", "possible", "out of", "total points", "total", "possible score", "points possible", "denominator"],
-  date: ["date", "day", "submitted", "taken", "completed", "month", "timestamp", "time", "due", "assigned"],
+  maxScore: ["max", "maximum", "possible", "out of", "total points", "total", "possible score", "points possible", "denominator", "дээд", "нийт", "боломжит", "нийт оноо", "дээд оноо"],
+  date: ["date", "day", "submitted", "taken", "completed", "month", "timestamp", "time", "due", "assigned", "огноо", "өдөр", "сар", "хугацаа", "өгсөн", "дууссан"],
   ignore: [],
 };
 
@@ -151,6 +207,18 @@ const academicHeaderHints = [
   "grammar",
   "phonics",
   "number sense",
+  "математик",
+  "монгол хэл",
+  "англи хэл",
+  "байгалийн ухаан",
+  "нийгмийн ухаан",
+  "түүх",
+  "газарзүй",
+  "геометр",
+  "бутархай",
+  "уншлага",
+  "бичих",
+  "үгийн сан",
 ];
 
 type ColumnProfile = {
@@ -577,7 +645,7 @@ function profileColumn(rows: CsvRow[], column: string): ColumnProfile {
   const fractions = parsedScores.filter((score) => score?.source === "fraction").length;
   const proficiency = nonEmptyValues.filter((value) => isProficiencyValue(value)).length;
   const dates = nonEmptyValues.filter((value) => isLikelyDate(value)).length;
-  const text = nonEmptyValues.filter((value) => /[a-z]/i.test(value) && !parseScoreValue(value) && !isProficiencyValue(value)).length;
+  const text = nonEmptyValues.filter((value) => /\p{L}/u.test(value) && !parseScoreValue(value) && !isProficiencyValue(value)).length;
   const uniqueRatio = nonEmpty ? uniqueValues.size / nonEmpty : 0;
 
   return {
@@ -600,7 +668,7 @@ function normalizeHeader(header: string) {
   return header
     .toLowerCase()
     .replace(/[_-]+/g, " ")
-    .replace(/[^\w\s/%.]/g, " ")
+    .replace(/[^\p{L}\p{N}\s/%.]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -659,7 +727,7 @@ function applyTableLevelAdjustments(inferences: ColumnInference[], rows: CsvRow[
       }
 
       const samples = rows.slice(0, 40).map((row) => String(row[inference.column] ?? "").trim()).filter(Boolean);
-      return samples.some((sample) => /[a-z]/i.test(sample));
+      return samples.some((sample) => /\p{L}/u.test(sample));
     });
 
     if (!hasTextColumn) {
@@ -711,5 +779,14 @@ function isProficiencyValue(value: string) {
     "fail",
     "yes",
     "no",
+    "эзэмшсэн",
+    "чадварлаг",
+    "ахисан",
+    "сайжирч байгаа",
+    "эхэлж байгаа",
+    "хангалттай",
+    "хангалтгүй",
+    "тийм",
+    "үгүй",
   ].includes(normalized);
 }
