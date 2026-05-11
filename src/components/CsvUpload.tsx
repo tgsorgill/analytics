@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileSpreadsheet, Upload } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { parseCsvFile } from "@/lib/csv";
@@ -14,8 +14,28 @@ import { t } from "@/lib/i18n";
 export function CsvUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [visualProgress, setVisualProgress] = useState(0);
   const { locale, isParsing, parseProgress, setParsedCsv, setParsing, setParseProgress, setError, setAiInsight, setExtraAiInsight, setExtraAnalytics, error } =
     useAnalyticsStore();
+
+  useEffect(() => {
+    if (!isParsing) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setVisualProgress((current) => {
+        if (current >= 94) {
+          return current;
+        }
+
+        const easing = Math.max(0.7, (96 - current) / 28);
+        return Math.min(94, current + easing + Math.random() * 2.6);
+      });
+    }, 180);
+
+    return () => window.clearInterval(timer);
+  }, [isParsing]);
 
   async function handleFile(file?: File) {
     if (!file) {
@@ -29,6 +49,7 @@ export function CsvUpload() {
 
     setParsing(true);
     setParseProgress(0);
+    setVisualProgress(3);
     setError(undefined);
     setAiInsight(undefined);
     setExtraAiInsight(undefined);
@@ -46,6 +67,8 @@ export function CsvUpload() {
             fallbackMappings,
           }).catch(() => fallbackMappings)
         : fallbackMappings;
+      setVisualProgress(100);
+      await delay(260);
       setParsedCsv(parsed, inferences, mappings);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t(locale, "upload.parseFailed"));
@@ -117,8 +140,11 @@ export function CsvUpload() {
               {parseProgress.toLocaleString()} {t(locale, "upload.rows")}
             </span>
           </div>
-          <div className="h-2 rounded bg-[#d9ded8]">
-            <div className="h-2 w-2/3 animate-pulse rounded bg-[#16726d]" />
+          <div className="h-2 overflow-hidden rounded bg-[#d9ded8]">
+            <div
+              className="loading-progress-bar h-2 rounded"
+              style={{ width: `${Math.max(3, Math.min(100, visualProgress))}%` }}
+            />
           </div>
         </div>
       ) : null}
@@ -133,4 +159,8 @@ export function CsvUpload() {
       </div>
     </section>
   );
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

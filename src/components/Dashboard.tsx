@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -15,7 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { FileText, RefreshCcw, TrendingDown, TrendingUp } from "lucide-react";
+import { FileText, Info, RefreshCcw, TrendingDown, TrendingUp } from "lucide-react";
 import { ArchitecturePanel } from "@/components/ArchitecturePanel";
 import { AiSummaryPanel } from "@/components/AiSummaryPanel";
 import { ExportPanel } from "@/components/ExportPanel";
@@ -24,6 +25,7 @@ import { FormulasWorkspace } from "@/components/FormulasWorkspace";
 import { IndividualWorkspace } from "@/components/IndividualWorkspace";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { StatusBadge } from "@/components/StatusBadge";
+import { buildTimelineSeries, timelineTickFormatter, timelineTooltipLabel } from "@/lib/chartTimeline";
 import { localizeDirection, localizeLabel, t, type Locale } from "@/lib/i18n";
 import type { AnalyticsResult } from "@/lib/types";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
@@ -111,6 +113,7 @@ export function Dashboard() {
 
 function OverviewWorkspace({ analytics }: { analytics: AnalyticsResult }) {
   const { locale } = useAnalyticsStore();
+
   return (
     <section className="workspace-page flex flex-col gap-5">
       <Overview analytics={analytics} />
@@ -377,7 +380,7 @@ function CategoryPerformance({ analytics, locale }: { analytics: AnalyticsResult
   }));
 
   return (
-    <ChartShell title={t(locale, "overview.categoryPerformance")}>
+    <ChartShell title={t(locale, "overview.categoryPerformance")} explanation={t(locale, "chart.categoryPerformance.explain")}>
       <ResponsiveContainer width="100%" height={320}>
         <BarChart data={data} margin={{ top: 18, right: 24, left: 18, bottom: 70 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
@@ -397,7 +400,7 @@ function MasteryBreakdown({ analytics, locale }: { analytics: AnalyticsResult; l
   const data = analytics.masteryBreakdown.map((item) => ({ ...item, label: localizeLabel(item.label, locale) }));
 
   return (
-    <ChartShell title={t(locale, "overview.masteryBreakdown")}>
+    <ChartShell title={t(locale, "overview.masteryBreakdown")} explanation={t(locale, "chart.masteryBreakdown.explain")}>
       <ResponsiveContainer width="100%" height={320}>
         <PieChart margin={{ top: 12, right: 18, bottom: 18, left: 18 }}>
           <Pie data={data} dataKey="count" nameKey="label" innerRadius={70} outerRadius={110} paddingAngle={2}>
@@ -415,7 +418,7 @@ function MasteryBreakdown({ analytics, locale }: { analytics: AnalyticsResult; l
 
 function ScoreDistribution({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
   return (
-    <ChartShell title={t(locale, "overview.scoreDistribution")}>
+    <ChartShell title={t(locale, "overview.scoreDistribution")} explanation={t(locale, "chart.scoreDistribution.explain")}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={analytics.chartData.distribution} margin={{ top: 16, right: 24, left: 18, bottom: 12 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
@@ -431,18 +434,25 @@ function ScoreDistribution({ analytics, locale }: { analytics: AnalyticsResult; 
 
 function TrendChart({ analytics, locale }: { analytics: AnalyticsResult; locale: Locale }) {
   const hasData = analytics.chartData.trend.length > 1;
-  const trendData = analytics.chartData.trend.map((point) => ({ ...point, date: localizeLabel(point.date, locale) }));
+  const trendData = buildTimelineSeries(analytics.chartData.trend, (point) => point.date, locale);
 
   return (
-    <ChartShell title={t(locale, "overview.trendOverTime")}>
+    <ChartShell title={t(locale, "overview.trendOverTime")} explanation={t(locale, "chart.trendOverTime.explain")}>
       {hasData ? (
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={trendData} margin={{ top: 16, right: 26, left: 18, bottom: 12 }}>
+          <LineChart data={trendData.data} margin={{ top: 16, right: 26, left: 18, bottom: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+            <XAxis
+              dataKey="timelineValue"
+              type={trendData.useTimeScale ? "number" : "category"}
+              scale={trendData.useTimeScale ? "time" : undefined}
+              domain={trendData.useTimeScale ? ["dataMin", "dataMax"] : undefined}
+              tick={{ fontSize: 11 }}
+              tickFormatter={trendData.useTimeScale ? timelineTickFormatter(locale) : undefined}
+            />
             <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-            <Tooltip formatter={(value) => `${value}%`} />
-            <Line type="monotone" dataKey="average" name={t(locale, "common.average")} stroke="#2f69a1" strokeWidth={2} dot />
+            <Tooltip formatter={(value) => `${value}%`} labelFormatter={trendData.useTimeScale ? timelineTooltipLabel(locale) : undefined} />
+            <Line type="linear" dataKey="average" name={t(locale, "common.average")} stroke="#2f69a1" strokeWidth={2} dot />
           </LineChart>
         </ResponsiveContainer>
       ) : (
@@ -459,7 +469,7 @@ function SubjectComparison({ analytics, locale }: { analytics: AnalyticsResult; 
   }));
 
   return (
-    <ChartShell title={t(locale, "overview.subjectComparisons")}>
+    <ChartShell title={t(locale, "overview.subjectComparisons")} explanation={t(locale, "chart.subjectComparisons.explain")}>
       {data.length ? (
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data} layout="vertical" margin={{ top: 16, right: 24, left: 48, bottom: 12 }}>
@@ -481,7 +491,7 @@ function ClusterChart({ analytics, locale }: { analytics: AnalyticsResult; local
   const data = analytics.chartData.clusters.map((cluster) => ({ ...cluster, label: localizeLabel(cluster.label, locale) }));
 
   return (
-    <ChartShell title={t(locale, "overview.performanceClusters")}>
+    <ChartShell title={t(locale, "overview.performanceClusters")} explanation={t(locale, "chart.performanceClusters.explain")}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} margin={{ top: 16, right: 24, left: 18, bottom: 12 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
@@ -503,12 +513,12 @@ function CategoryHeatmap({ analytics, locale }: { analytics: AnalyticsResult; lo
   const topics = analytics.topicStats.slice(0, 24);
 
   return (
-    <section className="metric-panel p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t(locale, "overview.categoryHeatmap")}</h2>
-        <span className="text-xs text-[#5b635f]">{t(locale, "overview.averageScore")}</span>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+    <ChartShell
+      title={t(locale, "overview.categoryHeatmap")}
+      explanation={t(locale, "chart.categoryHeatmap.explain")}
+      meta={<span>{t(locale, "overview.averageScore")}</span>}
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         {topics.map((topic) => (
           <div
             key={topic.topic}
@@ -518,19 +528,53 @@ function CategoryHeatmap({ analytics, locale }: { analytics: AnalyticsResult; lo
             <div className="truncate font-semibold">{localizeLabel(topic.topic, locale)}</div>
             <div className="mt-2 text-xl font-semibold">{formatPercent(topic.average)}</div>
             <div className="mt-1 text-xs text-[#3f4642]">
-              {topic.count} {locale === "mn" ? "рекорд" : "records"}
+              {topic.count} {locale === "en" ? t(locale, "common.records").toLowerCase() : t(locale, "common.records")}
             </div>
           </div>
         ))}
       </div>
-    </section>
+    </ChartShell>
   );
 }
 
-function ChartShell({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartShell({
+  title,
+  explanation,
+  meta,
+  children,
+}: {
+  title: string;
+  explanation: string;
+  meta?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const { locale } = useAnalyticsStore();
+  const [showExplanation, setShowExplanation] = useState(false);
+
   return (
     <section className="metric-panel interactive-panel reveal-up p-5 sm:p-6">
-      <h2 className="mb-4 text-lg font-semibold">{title}</h2>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {meta ? <div className="mt-1 text-xs text-[#5b635f]">{meta}</div> : null}
+        </div>
+        <button
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded border border-[#bec8c0] bg-white px-3 py-1.5 text-xs font-semibold text-[#3f4642] transition hover:-translate-y-0.5 hover:bg-[#f1f4f1] hover:shadow-sm"
+          type="button"
+          aria-expanded={showExplanation}
+          onClick={() => setShowExplanation((current) => !current)}
+        >
+          <Info className="h-3.5 w-3.5 text-[#16726d]" />
+          {t(locale, showExplanation ? "charts.hideExplanation" : "charts.explain")}
+        </button>
+      </div>
+      {showExplanation ? (
+        <div
+          className="mb-4 rounded border border-[#cdd8d0] bg-[#f7faf7] p-4 text-sm leading-6 text-[#3f4642]"
+        >
+          {explanation}
+        </div>
+      ) : null}
       {children}
     </section>
   );

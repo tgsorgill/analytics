@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Local-First Educational Analytics",
+  title: "Educational Analytics",
   description:
     "Browser-only CSV assessment analytics with transparent schema mapping and optional aggregated AI summaries.",
 };

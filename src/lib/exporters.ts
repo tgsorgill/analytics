@@ -19,6 +19,11 @@ export type StudentCoveragePdfData = {
   masteryRate: number;
   consistencyScore: number;
   standardDeviation: number;
+  efficiency?: {
+    score: number;
+    tier: string;
+    components: Record<string, number>;
+  };
   trend: {
     direction: TrendDirection;
     change: number;
@@ -316,6 +321,9 @@ export async function exportStudentCoveragePdf(fileName: string, student: Studen
 
   report.coverStudent(student);
   report.metricGrid([
+    ...(student.efficiency
+      ? [{ label: t(locale, "individual.efficiency"), value: formatChartValue(student.efficiency.score), note: t(locale, "individual.efficiencyBand") }]
+      : []),
     { label: t(locale, "common.records"), value: student.count.toLocaleString(), note: pdfText(locale, "studentRecordGroup") },
     { label: t(locale, "common.average"), value: pct(student.average), note: pdfText(locale, "meanScore") },
     { label: t(locale, "overview.median"), value: pct(student.median), note: pdfText(locale, "middleScore") },
@@ -941,6 +949,13 @@ function createReportWriter(doc: jsPDF, fileName: string, locale: Locale) {
     const chartHeight = 108;
     const baseline = chartY + chartHeight;
     const step = data.length > 1 ? chartWidth / (data.length - 1) : chartWidth;
+    const timestamps = data.map((item) => parsePdfTimelineDate(item.label));
+    const datedScale =
+      data.length > 1 &&
+      timestamps.every((value): value is number => Number.isFinite(value)) &&
+      new Set(timestamps).size > 1;
+    const minTime = datedScale ? Math.min(...timestamps) : 0;
+    const maxTime = datedScale ? Math.max(...timestamps) : 0;
 
     setFill(palette.faint);
     setStroke(palette.line);
@@ -956,10 +971,17 @@ function createReportWriter(doc: jsPDF, fileName: string, locale: Locale) {
       doc.text(`${tick}%`, page.margin + 10, tickY + 3);
     });
 
-    const points = data.map((item, index) => ({
-      x: chartX + index * step,
-      y: baseline - (Math.max(0, Math.min(100, item.value)) / 100) * chartHeight,
-    }));
+    const points = data.map((item, index) => {
+      const x =
+        datedScale && typeof timestamps[index] === "number"
+          ? chartX + ((timestamps[index] - minTime) / Math.max(1, maxTime - minTime)) * chartWidth
+          : chartX + index * step;
+
+      return {
+        x,
+        y: baseline - (Math.max(0, Math.min(100, item.value)) / 100) * chartHeight,
+      };
+    });
 
     setStroke(palette.blue);
     doc.setLineWidth(2);
@@ -978,7 +1000,7 @@ function createReportWriter(doc: jsPDF, fileName: string, locale: Locale) {
     setText(palette.muted);
     data.forEach((item, index) => {
       if (index === 0 || index === data.length - 1 || index % Math.ceil(data.length / 4) === 0) {
-        doc.text(trimLabel(item.label, 12), chartX + index * step - 12, baseline + 18);
+        doc.text(trimLabel(item.label, 12), points[index].x - 12, baseline + 18);
       }
     });
 
@@ -1226,6 +1248,31 @@ function trendRgb(direction: TrendDirection): Rgb {
 
 function formatChartValue(value: number) {
   return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+}
+
+function parsePdfTimelineDate(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const iso = trimmed.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (iso) {
+    return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  }
+
+  const short = trimmed.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (short) {
+    const year = Number(short[3].length === 2 ? `20${short[3]}` : short[3]);
+    return Date.UTC(year, Number(short[1]) - 1, Number(short[2]));
+  }
+
+  if (!/\b\d{4}\b/.test(trimmed)) {
+    return null;
+  }
+
+  const parsed = Date.parse(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function chartRgb(index: number): Rgb {

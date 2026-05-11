@@ -1,4 +1,5 @@
 import { sampleValues } from "@/lib/csv";
+import { isProtectedDateHeader, normalizeHeaderLabel } from "@/lib/headerRoles";
 import { inferStudentIdentifierRole } from "@/lib/privacy";
 import { parseScoreValue } from "@/lib/score";
 import type { ColumnInference, CsvRow, FieldCandidate, HeaderDerivation, InternalField } from "@/lib/types";
@@ -299,6 +300,7 @@ function buildCandidates(profile: ColumnProfile): FieldCandidate[] {
 function scoreCandidate(profile: ColumnProfile): FieldCandidate {
   const scoreKeywords = keywordScore(profile, "score");
   const studentRole = inferStudentIdentifierRole(profile.header);
+  const protectedDateHeader = isProtectedDateHeader(profile.header);
   const assessmentKeywords = keywordScore(profile, "assessment");
   const topicKeywords = keywordScore(profile, "topic");
   const academicHint = academicHeaderHints.some((word) => profile.normalizedHeader.includes(word));
@@ -312,6 +314,15 @@ function scoreCandidate(profile: ColumnProfile): FieldCandidate {
       mappedTo: "score",
       confidence: 0.02,
       evidence: ["Header looks like a student identifier, not a score"],
+      headerDerivation: "none",
+    };
+  }
+
+  if (protectedDateHeader) {
+    return {
+      mappedTo: "score",
+      confidence: 0.01,
+      evidence: ["Header is protected as a date field, not a grade or score"],
       headerDerivation: "none",
     };
   }
@@ -335,6 +346,11 @@ function scoreCandidate(profile: ColumnProfile): FieldCandidate {
   if (profile.proficiencyRatio >= 0.65) {
     confidence = Math.max(confidence, 0.74);
     evidence.push("Values match common proficiency or mastery labels");
+  }
+
+  if (profile.dateRatio >= 0.75 && scoreKeywords < 0.5) {
+    confidence = Math.min(confidence, 0.18);
+    evidence.push("Values look like dates, so score confidence was reduced");
   }
 
   if (scoreKeywords === 0 && scoreLikeRatio >= 0.82 && (academicHint || topicKeywords > 0.35)) {
@@ -365,6 +381,15 @@ function scoreCandidate(profile: ColumnProfile): FieldCandidate {
 
 function maxScoreCandidate(profile: ColumnProfile): FieldCandidate {
   const keyword = keywordScore(profile, "maxScore");
+  if (isProtectedDateHeader(profile.header)) {
+    return {
+      mappedTo: "maxScore",
+      confidence: 0.01,
+      evidence: ["Header is protected as a date field, not a max score"],
+      headerDerivation: "none",
+    };
+  }
+
   const confidence = keyword * 0.64 + profile.numericRatio * 0.26;
   const evidence = [
     ...(keyword ? ["Header suggests maximum or possible points"] : []),
@@ -381,8 +406,10 @@ function maxScoreCandidate(profile: ColumnProfile): FieldCandidate {
 
 function dateCandidate(profile: ColumnProfile): FieldCandidate {
   const keyword = keywordScore(profile, "date");
-  const confidence = keyword * 0.55 + profile.dateRatio * 0.4;
+  const protectedDateHeader = isProtectedDateHeader(profile.header);
+  const confidence = protectedDateHeader ? Math.max(0.96, profile.dateRatio >= 0.35 ? 0.99 : 0.96) : keyword * 0.55 + profile.dateRatio * 0.4;
   const evidence = [
+    ...(protectedDateHeader ? ["Header is protected as a date field"] : []),
     ...(keyword ? ["Header suggests a date"] : []),
     ...(profile.dateRatio > 0.6 ? ["Most sampled values parse as dates"] : []),
   ];
@@ -665,21 +692,33 @@ function profileColumn(rows: CsvRow[], column: string): ColumnProfile {
 }
 
 function normalizeHeader(header: string) {
-  return header
-    .toLowerCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/[^\p{L}\p{N}\s/%.]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return normalizeHeaderLabel(header);
 }
 
 function isLikelyDate(value: string) {
-  if (!/[/-]|\b\d{4}\b/.test(value)) {
+  if (!hasObviousDateShape(value)) {
     return false;
   }
 
   const time = Date.parse(value);
   return Number.isFinite(time);
+}
+
+function hasObviousDateShape(value: string) {
+  const trimmed = value.trim();
+  if (/\b\d{4}\b/.test(trimmed)) {
+    return true;
+  }
+
+  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(trimmed)) {
+    return true;
+  }
+
+  if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(trimmed)) {
+    return true;
+  }
+
+  return false;
 }
 
 function applyTableLevelAdjustments(inferences: ColumnInference[], rows: CsvRow[]) {

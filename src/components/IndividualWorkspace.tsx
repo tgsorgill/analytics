@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { Download, FileText, Filter, Search, ShieldCheck, UserRound } from "lucide-react";
 import { exportStudentCoveragePdf } from "@/lib/exporters";
+import { buildTimelineSeries, timelineTickFormatter, timelineTooltipLabel } from "@/lib/chartTimeline";
 import { localizeDirection, localizeLabel, t, type Locale } from "@/lib/i18n";
 import { scoreToPercent } from "@/lib/score";
 import type { NormalizedRecord, TrendDirection } from "@/lib/types";
@@ -42,12 +43,37 @@ type StudentStats = {
   masteryRate: number;
   consistencyScore: number;
   standardDeviation: number;
+  efficiency: EfficiencyProfile;
   trend: StudentTrend;
   strongest: GroupStat[];
   weakest: GroupStat[];
   coverage: GroupStat[];
   subjects: GroupStat[];
   distribution: { label: string; count: number }[];
+};
+
+type StudentStatsBase = Omit<StudentStats, "efficiency">;
+type StudentSort =
+  | "name_asc"
+  | "grade_desc"
+  | "grade_asc"
+  | "efficiency_desc"
+  | "improvement_desc"
+  | "consistency_desc"
+  | "records_desc";
+
+type EfficiencyTier = "Elite" | "Strong" | "Steady" | "Developing";
+
+type EfficiencyProfile = {
+  score: number;
+  tier: EfficiencyTier;
+  components: {
+    scoring: number;
+    mastery: number;
+    consistency: number;
+    momentum: number;
+    coverage: number;
+  };
 };
 
 type GroupStat = {
@@ -63,18 +89,16 @@ const emptyRecords: NormalizedRecord[] = [];
 export function IndividualWorkspace() {
   const { locale, normalized } = useAnalyticsStore();
   const [query, setQuery] = useState("");
-  const [subject, setSubject] = useState("all");
-  const [category, setCategory] = useState("all");
   const [band, setBand] = useState("all");
   const [trend, setTrend] = useState("all");
+  const [sortBy, setSortBy] = useState<StudentSort>("name_asc");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const records = normalized?.records ?? emptyRecords;
   const students = useMemo(() => buildStudentStats(records), [records]);
-  const filters = useMemo(() => buildFilters(students), [students]);
   const filteredStudents = useMemo(
-    () => filterStudents(students, { query, subject, category, band, trend }),
-    [band, category, query, students, subject, trend],
+    () => sortStudents(filterStudents(students, { query, band, trend }), sortBy),
+    [band, query, sortBy, students, trend],
   );
   const selected = filteredStudents.find((student) => student.key === selectedKey) ?? filteredStudents[0] ?? students[0];
 
@@ -137,8 +161,13 @@ export function IndividualWorkspace() {
               </div>
             </label>
 
-            <FilterSelect label={t(locale, "individual.subject")} value={subject} onChange={setSubject} options={filters.subjects} locale={locale} />
-            <FilterSelect label={t(locale, "individual.category")} value={category} onChange={setCategory} options={filters.categories} locale={locale} />
+            <FilterSelect
+              label={t(locale, "individual.sort")}
+              value={sortBy}
+              onChange={(value) => setSortBy(value as StudentSort)}
+              options={sortOptions()}
+              locale={locale}
+            />
             <FilterSelect label={t(locale, "individual.performanceBand")} value={band} onChange={setBand} options={performanceBandOptions()} locale={locale} />
             <FilterSelect label={t(locale, "individual.trendFilter")} value={trend} onChange={setTrend} options={trendOptions()} locale={locale} />
           </div>
@@ -160,9 +189,14 @@ export function IndividualWorkspace() {
                       <div className="truncate font-semibold">{student.label}</div>
                       <div className="mt-1 truncate text-xs text-[#6b746f]">{student.secondaryLabel}</div>
                     </div>
-                    <span className="shrink-0 rounded bg-[#e4edf5] px-2 py-1 text-xs font-semibold text-[#254f78]">
-                      {formatPercent(student.average)}
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="rounded bg-[#e4edf5] px-2 py-1 text-xs font-semibold text-[#254f78]">
+                        {formatPercent(student.average)}
+                      </span>
+                      <span className="rounded bg-[#f3ead1] px-2 py-1 text-xs font-semibold text-[#835f05]">
+                        EFF {formatNumber(student.efficiency.score, 1)}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-xs text-[#6b746f]">
                     <span className="min-w-0 truncate">
@@ -187,6 +221,7 @@ export function IndividualWorkspace() {
 function StudentDetail({ student, locale }: { student: StudentStats; locale: Locale }) {
   const { parsedCsv } = useAnalyticsStore();
   const sourceName = parsedCsv?.fileName ?? "student-coverage";
+  const progressionSeries = buildTimelineSeries(student.trend.points, (point) => point.label, locale);
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -222,7 +257,8 @@ function StudentDetail({ student, locale }: { student: StudentStats; locale: Loc
           </div>
         </div>
 
-        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-7">
+          <MetricCard label={t(locale, "individual.efficiency")} value={formatNumber(student.efficiency.score, 1)} progress={student.efficiency.score} color="#835f05" />
           <MetricCard label={t(locale, "common.average")} value={formatPercent(student.average)} progress={student.average} color="#16726d" />
           <MetricCard label={t(locale, "overview.median")} value={formatPercent(student.median)} progress={student.median} color="#2f69a1" />
           <MetricCard label={t(locale, "common.mastery")} value={formatPercent(student.masteryRate)} progress={student.masteryRate} color="#b8860b" />
@@ -232,16 +268,25 @@ function StudentDetail({ student, locale }: { student: StudentStats; locale: Loc
         </div>
       </section>
 
+      <EfficiencyPanel student={student} locale={locale} />
+
       <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <ChartPanel title={t(locale, "individual.progression")}>
           {student.trend.points.length > 1 ? (
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={student.trend.points.map((point) => ({ ...point, label: localizeLabel(point.label, locale) }))}>
+              <LineChart data={progressionSeries.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="timelineValue"
+                  type={progressionSeries.useTimeScale ? "number" : "category"}
+                  scale={progressionSeries.useTimeScale ? "time" : undefined}
+                  domain={progressionSeries.useTimeScale ? ["dataMin", "dataMax"] : undefined}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={progressionSeries.useTimeScale ? timelineTickFormatter(locale) : undefined}
+                />
                 <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                <Tooltip formatter={(value) => `${value}%`} />
-                <Line type="monotone" dataKey="average" name={t(locale, "common.average")} stroke="#16726d" strokeWidth={2} dot />
+                <Tooltip formatter={(value) => `${value}%`} labelFormatter={progressionSeries.useTimeScale ? timelineTooltipLabel(locale) : undefined} />
+                <Line type="linear" dataKey="average" name={t(locale, "common.average")} stroke="#16726d" strokeWidth={2} dot />
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -329,6 +374,46 @@ function MetricCard({ label, value, progress, color }: { label: string; value: s
         <div className="animated-bar h-1.5 rounded" style={{ width: `${Math.max(8, Math.min(100, progress))}%`, background: color }} />
       </div>
     </div>
+  );
+}
+
+function EfficiencyPanel({ student, locale }: { student: StudentStats; locale: Locale }) {
+  const components = [
+    [t(locale, "individual.scoringImpact"), student.efficiency.components.scoring, "#16726d"],
+    [t(locale, "individual.masteryImpact"), student.efficiency.components.mastery, "#b8860b"],
+    [t(locale, "individual.consistencyImpact"), student.efficiency.components.consistency, "#7a5aa6"],
+    [t(locale, "individual.momentumImpact"), student.efficiency.components.momentum, trendColor(student.trend.direction)],
+    [t(locale, "individual.coverageImpact"), student.efficiency.components.coverage, "#2f69a1"],
+  ] as const;
+
+  return (
+    <section className="metric-panel interactive-panel min-w-0 overflow-hidden p-5 sm:p-6">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(220px,0.4fr)_minmax(0,1fr)] lg:items-center">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-normal text-[#835f05]">{t(locale, "individual.efficiencyBand")}</p>
+          <div className="mt-2 flex flex-wrap items-end gap-3">
+            <span className="text-4xl font-semibold">{formatNumber(student.efficiency.score, 1)}</span>
+            <span className="mb-1 rounded bg-[#f3ead1] px-3 py-1 text-sm font-semibold text-[#835f05]">
+              {localizeEfficiencyTier(student.efficiency.tier, locale)}
+            </span>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-[#4f5954]">{t(locale, "individual.efficiencyBody")}</p>
+        </div>
+        <div className="grid min-w-0 gap-3 md:grid-cols-5">
+          {components.map(([label, value, color]) => (
+            <div key={label} className="min-w-0 overflow-hidden rounded border border-[#d9ded8] bg-[#f7faf7] p-3">
+              <div className="truncate text-xs font-semibold uppercase tracking-normal text-[#6b746f]" title={label}>
+                {label}
+              </div>
+              <div className="mt-2 text-lg font-semibold">{formatPercent(value)}</div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded bg-[#e6ebe5]">
+                <div className="animated-bar h-1.5 rounded" style={{ width: `${Math.max(8, Math.min(100, value))}%`, background: color }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -438,6 +523,7 @@ function exportStudentCoverage(fileName: string, student: StudentStats, locale: 
       masteryRate: student.masteryRate,
       consistencyScore: student.consistencyScore,
       standardDeviation: student.standardDeviation,
+      efficiency: student.efficiency,
       trend: student.trend,
       strongest: student.strongest,
       watchAreas: student.weakest,
@@ -460,7 +546,7 @@ function buildStudentStats(records: NormalizedRecord[]): StudentStats[] {
     groups.set(key, [...(groups.get(key) ?? []), record]);
   }
 
-  return Array.from(groups.entries())
+  const baseStudents = Array.from(groups.entries())
     .map(([key, groupRecords]) => {
       const values = groupRecords.map((record) => scoreToPercent(record.score, record.maxScore)).filter(Number.isFinite);
       const average = round(mean(values), 2);
@@ -486,29 +572,21 @@ function buildStudentStats(records: NormalizedRecord[]): StudentStats[] {
         coverage: coverage.slice(0, 6),
         subjects: groupedStats(groupRecords, recordSubject).sort((a, b) => b.count - a.count),
         distribution: buildDistribution(values),
-      } satisfies StudentStats;
-    })
+      } satisfies StudentStatsBase;
+    });
+  const maxCount = Math.max(1, ...baseStudents.map((student) => student.count));
+
+  return baseStudents
+    .map((student) => ({
+      ...student,
+      efficiency: buildEfficiency(student, maxCount),
+    }))
     .sort((a, b) => a.label.localeCompare(b.label));
-}
-
-function buildFilters(students: StudentStats[]) {
-  const subjects = new Set<string>();
-  const categories = new Set<string>();
-
-  for (const student of students) {
-    student.subjects.forEach((item) => subjects.add(item.label));
-    student.coverage.forEach((item) => categories.add(item.label));
-  }
-
-  return {
-    subjects: ["all", ...Array.from(subjects).sort((a, b) => a.localeCompare(b))],
-    categories: ["all", ...Array.from(categories).sort((a, b) => a.localeCompare(b))],
-  };
 }
 
 function filterStudents(
   students: StudentStats[],
-  filters: { query: string; subject: string; category: string; band: string; trend: string },
+  filters: { query: string; band: string; trend: string },
 ) {
   const query = filters.query.trim().toLowerCase();
 
@@ -517,12 +595,68 @@ function filterStudents(
       !query ||
       student.label.toLowerCase().includes(query) ||
       student.secondaryLabel.toLowerCase().includes(query);
-    const matchesSubject = filters.subject === "all" || student.subjects.some((item) => item.label === filters.subject);
-    const matchesCategory = filters.category === "all" || student.coverage.some((item) => item.label === filters.category);
     const matchesBand = filters.band === "all" || bandForAverage(student.average) === filters.band;
     const matchesTrend = filters.trend === "all" || student.trend.direction === filters.trend;
-    return matchesSearch && matchesSubject && matchesCategory && matchesBand && matchesTrend;
+    return matchesSearch && matchesBand && matchesTrend;
   });
+}
+
+function sortStudents(students: StudentStats[], sortBy: StudentSort) {
+  const sorted = [...students];
+
+  if (sortBy === "grade_desc") {
+    return sorted.sort((a, b) => b.average - a.average || a.label.localeCompare(b.label));
+  }
+
+  if (sortBy === "grade_asc") {
+    return sorted.sort((a, b) => a.average - b.average || a.label.localeCompare(b.label));
+  }
+
+  if (sortBy === "efficiency_desc") {
+    return sorted.sort((a, b) => b.efficiency.score - a.efficiency.score || a.label.localeCompare(b.label));
+  }
+
+  if (sortBy === "improvement_desc") {
+    return sorted.sort((a, b) => b.trend.change - a.trend.change || b.average - a.average || a.label.localeCompare(b.label));
+  }
+
+  if (sortBy === "consistency_desc") {
+    return sorted.sort((a, b) => b.consistencyScore - a.consistencyScore || b.average - a.average || a.label.localeCompare(b.label));
+  }
+
+  if (sortBy === "records_desc") {
+    return sorted.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }
+
+  return sorted.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function buildEfficiency(student: StudentStatsBase, maxCount: number): EfficiencyProfile {
+  const momentum =
+    student.trend.direction === "insufficient_data"
+      ? 50
+      : clamp(50 + student.trend.change * 2.2, 0, 100);
+  const coverage = clamp((student.count / maxCount) * 100, 0, 100);
+  const score = round(
+    student.average * 0.44 +
+      student.masteryRate * 0.2 +
+      student.consistencyScore * 0.18 +
+      momentum * 0.12 +
+      coverage * 0.06,
+    1,
+  );
+
+  return {
+    score,
+    tier: efficiencyTier(score),
+    components: {
+      scoring: round(student.average, 1),
+      mastery: round(student.masteryRate, 1),
+      consistency: round(student.consistencyScore, 1),
+      momentum: round(momentum, 1),
+      coverage: round(coverage, 1),
+    },
+  };
 }
 
 function groupedStats(records: NormalizedRecord[], labeler: (record: NormalizedRecord) => string) {
@@ -701,9 +835,18 @@ function trendOptions() {
   return ["all", "improving", "declining", "flat", "insufficient_data"];
 }
 
+function sortOptions(): StudentSort[] {
+  return ["name_asc", "grade_desc", "grade_asc", "efficiency_desc", "improvement_desc", "consistency_desc", "records_desc"];
+}
+
 function filterOptionLabel(option: string, locale: Locale) {
   if (option === "all") {
     return t(locale, "individual.all");
+  }
+
+  const sortLabel = sortOptionLabel(option as StudentSort, locale);
+  if (sortLabel) {
+    return sortLabel;
   }
 
   if (["improving", "declining", "flat", "insufficient_data"].includes(option)) {
@@ -711,6 +854,20 @@ function filterOptionLabel(option: string, locale: Locale) {
   }
 
   return localizeLabel(option, locale);
+}
+
+function sortOptionLabel(option: StudentSort, locale: Locale) {
+  const labels: Partial<Record<StudentSort, Parameters<typeof t>[1]>> = {
+    name_asc: "individual.sortName",
+    grade_desc: "individual.sortGradeHigh",
+    grade_asc: "individual.sortGradeLow",
+    efficiency_desc: "individual.sortEfficiency",
+    improvement_desc: "individual.sortImprovement",
+    consistency_desc: "individual.sortConsistency",
+    records_desc: "individual.sortRecords",
+  };
+  const key = labels[option];
+  return key ? t(locale, key) : "";
 }
 
 function bandForAverage(value: number) {
@@ -788,6 +945,37 @@ function linearSlope(points: number[][]) {
 
 function masteryRate(values: number[]) {
   return values.length ? round((values.filter((value) => value >= 80).length / values.length) * 100, 1) : 0;
+}
+
+function efficiencyTier(score: number): EfficiencyTier {
+  if (score >= 88) {
+    return "Elite";
+  }
+  if (score >= 78) {
+    return "Strong";
+  }
+  if (score >= 65) {
+    return "Steady";
+  }
+  return "Developing";
+}
+
+function localizeEfficiencyTier(tier: EfficiencyTier, locale: Locale) {
+  if (locale !== "mn") {
+    return tier;
+  }
+
+  const labels: Record<EfficiencyTier, string> = {
+    Elite: "Элит",
+    Strong: "Хүчтэй",
+    Steady: "Тогтвортой",
+    Developing: "Хөгжиж буй",
+  };
+  return labels[tier];
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function formatSignedChange(value: number) {

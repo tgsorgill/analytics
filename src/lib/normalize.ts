@@ -1,4 +1,5 @@
 import { sanitizeCell } from "@/lib/csv";
+import { isProtectedDateHeader } from "@/lib/headerRoles";
 import { inferStudentIdentifierRole, isStudentIdentifierKey } from "@/lib/privacy";
 import { parseScoreValue, toNumber } from "@/lib/score";
 import {
@@ -216,6 +217,14 @@ function toIsoDate(value: string) {
 function protectStudentIdentifierMapping(mapping: ColumnMapping): ColumnMapping {
   if (mapping.field === "ignore") {
     return mapping;
+  }
+
+  if (isProtectedDateHeader(mapping.column) && mapping.field !== "date") {
+    return {
+      ...mapping,
+      field: "date",
+      headerDerivation: "none",
+    };
   }
 
   const protectedRole = inferStudentIdentifierRole(mapping.column);

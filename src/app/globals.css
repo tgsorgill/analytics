@@ -113,6 +113,22 @@ textarea:focus-visible {
   animation: grow-x 700ms ease both;
 }
 
+.loading-progress-bar {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #16726d, #27a69b 48%, #0f5a55);
+  box-shadow: 0 0 18px rgba(22, 114, 109, 0.22);
+  transition: width 220ms ease;
+}
+
+.loading-progress-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.52), transparent);
+  animation: loading-shine 1.15s ease-in-out infinite;
+}
+
 .active-workspace {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 20px rgba(15, 90, 85, 0.18);
 }
@@ -189,6 +205,15 @@ textarea:focus-visible {
   50% {
     opacity: 1;
     transform: scaleX(1);
+  }
+}
+
+@keyframes loading-shine {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
   }
 }
 

@@ -18,8 +18,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, Expand, GripVertical, Network, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, Expand, GripVertical, Info, Network, ShieldCheck, Sparkles } from "lucide-react";
 import { computeExtraAnalyticsInWorker } from "@/hooks/useExtraAnalyticsWorker";
+import { buildTimelineSeries, timelineTickFormatter, timelineTooltipLabel } from "@/lib/chartTimeline";
 import { configuredHfToken, defaultAiModel, requestExtraAiInsight } from "@/lib/huggingFace";
 import { localizeDirection, localizeLabel, t, type Locale } from "@/lib/i18n";
 import type { ExtraAnalyticsResult } from "@/lib/types";
@@ -297,6 +298,9 @@ function ExtraModule({
   onDragEnter: () => void;
   onDragEnd: () => void;
 }) {
+  const { locale } = useAnalyticsStore();
+  const [showExplanation, setShowExplanation] = useState(false);
+
   return (
     <article
       className={cn(
@@ -309,23 +313,76 @@ function ExtraModule({
       onDragEnter={onDragEnter}
       onDragEnd={onDragEnd}
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <h3 className="inline-flex items-center gap-2 text-lg font-semibold">
           <GripVertical className="h-4 w-4 text-[#8a948f]" />
           {title}
         </h3>
-        <button
-          className="rounded border border-[#bec8c0] p-2 text-[#4f5954] transition hover:-translate-y-0.5 hover:bg-[#f1f4f1] hover:shadow-md"
-          type="button"
-          title="Open fullscreen"
-          onClick={onFullscreen}
-        >
-          <Expand className="h-4 w-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            className="inline-flex items-center gap-2 rounded border border-[#bec8c0] bg-white px-3 py-2 text-xs font-semibold text-[#4f5954] transition hover:-translate-y-0.5 hover:bg-[#f1f4f1] hover:shadow-md"
+            type="button"
+            aria-expanded={showExplanation}
+            onClick={() => setShowExplanation((current) => !current)}
+          >
+            <Info className="h-3.5 w-3.5 text-[#16726d]" />
+            <span className="hidden sm:inline">{t(locale, showExplanation ? "charts.hideExplanation" : "charts.explain")}</span>
+          </button>
+          <button
+            className="rounded border border-[#bec8c0] p-2 text-[#4f5954] transition hover:-translate-y-0.5 hover:bg-[#f1f4f1] hover:shadow-md"
+            type="button"
+            title={t(locale, "extra.fullscreen")}
+            onClick={onFullscreen}
+          >
+            <Expand className="h-4 w-4" />
+          </button>
+        </div>
       </div>
+      {showExplanation ? (
+        <div className="mb-4 rounded border border-[#cdd8d0] bg-[#f7faf7] p-3 text-sm leading-6 text-[#3f4642]">
+          {extraModuleExplanation(id, locale)}
+        </div>
+      ) : null}
       {children}
     </article>
   );
+}
+
+function extraModuleExplanation(id: ModuleKey, locale: Locale) {
+  const en: Record<ModuleKey, string> = {
+    relationships:
+      "Shows statistical relationships between mapped categories, skills, standards, or topics. Stronger links mean scores moved together more often; this does not prove causation.",
+    coverage:
+      "Shows how assessment records are distributed across curriculum dimensions. Use it to find overrepresented or underrepresented areas, not to judge instruction quality.",
+    progression:
+      "Shows past-to-present movement, rolling average, and volatility when ordered or dated records exist. It describes observed movement only and does not predict future outcomes.",
+    archetypes:
+      "Groups anonymous classroom-level record patterns such as consistent, volatile, or improving cohorts. It never exposes, ranks, or scores individual students.",
+    assessment:
+      "Reviews assessments as data objects: variance, diversity, repeated focus, and scoring spread. It flags statistical patterns without assigning blame.",
+    anomalies:
+      "Lists unusual aggregate swings, volatile categories, or polarized distributions. These are review prompts, not claims about motivation, discipline, or ability.",
+    radar:
+      "Summarizes advanced classroom signals on one profile chart so coverage, stability, relationship density, and confidence can be compared quickly.",
+  };
+  const mn: Record<ModuleKey, string> = {
+    relationships:
+      "Зураглагдсан ангилал, чадвар, стандарт эсвэл сэдвүүдийн статистик хамаарлыг харуулна. Илүү хүчтэй холбоо нь оноонууд хамт хөдөлсөн дохио бөгөөд шалтгаан гэж нотлохгүй.",
+    coverage:
+      "Үнэлгээний рекордууд сургалтын хэмжээсүүдэд хэрхэн тархсаныг харуулна. Хэт их эсвэл дутуу төлөөлөгдсөн хэсгийг олоход ашиглана; заах чанарыг дүгнэхгүй.",
+    progression:
+      "Огноотой эсвэл дараалсан рекорд байгаа үед өнгөрснөөс одоог хүртэлх хөдөлгөөн, rolling дундаж, хэлбэлзлийг харуулна. Ирээдүйг таамаглахгүй.",
+    archetypes:
+      "Тогтвортой, хэлбэлзэлтэй, сайжирч буй зэрэг нэргүй ангийн түвшний хэв шинжийг бүлэглэнэ. Хувь сурагчийг ил гаргах, эрэмбэлэх, оноо өгөхгүй.",
+    assessment:
+      "Үнэлгээг өгөгдлийн объект байдлаар харна: варианс, олон янз байдал, давтагдсан төвлөрөл, онооны тархалт. Буруутгалгүй статистик хэв шинжийг л тэмдэглэнэ.",
+    anomalies:
+      "Нэгтгэсэн огцом хэлбэлзэл, тогтворгүй ангилал, туйлширсан тархалтыг жагсаана. Энэ нь хянах дохио болохоос сэдэл, сахилга, чадварын тухай дүгнэлт биш.",
+    radar:
+      "Хамралт, тогтвортой байдал, хамаарлын нягтрал, итгэлцүүр зэрэг дэвшилтэт дохиог нэг профайл графикт нэгтгэн хурдан харьцуулна.",
+  };
+
+  return locale === "mn" ? mn[id] : en[id];
 }
 
 function moduleSpan(id: ModuleKey) {
@@ -512,6 +569,7 @@ function ProgressionMomentum({ extra, height, locale }: { extra: ExtraAnalyticsR
   const latest = points[points.length - 1];
   const change = latest.rollingAverage - first.rollingAverage;
   const chartHeight = Math.max(220, height - 92);
+  const progressionSeries = buildTimelineSeries(points, (point) => point.label, locale);
 
   return (
     <div className="grid gap-4">
@@ -526,13 +584,23 @@ function ProgressionMomentum({ extra, height, locale }: { extra: ExtraAnalyticsR
         <ProgressionMetric label={t(locale, "extra.latest")} value={formatPercent(latest.rollingAverage)} sublabel={localizeLabel(latest.label, locale)} />
       </div>
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <LineChart data={points.map((point) => ({ ...point, label: localizeLabel(point.label, locale) }))}>
+        <LineChart data={progressionSeries.data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#d9ded8" />
-          <XAxis dataKey="label" tick={{ fill: "#5b635f", fontSize: 11 }} />
+          <XAxis
+            dataKey="timelineValue"
+            type={progressionSeries.useTimeScale ? "number" : "category"}
+            scale={progressionSeries.useTimeScale ? "time" : undefined}
+            domain={progressionSeries.useTimeScale ? ["dataMin", "dataMax"] : undefined}
+            tick={{ fill: "#5b635f", fontSize: 11 }}
+            tickFormatter={progressionSeries.useTimeScale ? timelineTickFormatter(locale) : undefined}
+          />
           <YAxis tick={{ fill: "#5b635f" }} domain={[0, 100]} />
-          <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #d9ded8", color: "#1c1f23" }} />
-          <Line dataKey="average" name={t(locale, "common.average")} stroke="#16726d" strokeWidth={2} dot={false} />
-          <Line dataKey="rollingAverage" name={locale === "mn" ? "Өнхрөх ахиц" : "Rolling momentum"} stroke="#c65d21" strokeWidth={2} dot />
+          <Tooltip
+            contentStyle={{ background: "#ffffff", border: "1px solid #d9ded8", color: "#1c1f23" }}
+            labelFormatter={progressionSeries.useTimeScale ? timelineTooltipLabel(locale) : undefined}
+          />
+          <Line type="linear" dataKey="average" name={t(locale, "common.average")} stroke="#16726d" strokeWidth={2} dot={false} />
+          <Line type="linear" dataKey="rollingAverage" name={locale === "mn" ? "Өнхрөх ахиц" : "Rolling momentum"} stroke="#c65d21" strokeWidth={2} dot />
           <Line dataKey="volatility" name={locale === "mn" ? "Хэлбэлзэл" : "Volatility"} stroke="#b63f3f" strokeDasharray="5 5" dot={false} />
         </LineChart>
       </ResponsiveContainer>

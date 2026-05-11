@@ -40,6 +40,15 @@ export type TranslationKey =
   | "common.nothing"
   | "common.aggregateOnly"
   | "common.localFiles"
+  | "charts.explain"
+  | "charts.hideExplanation"
+  | "chart.categoryPerformance.explain"
+  | "chart.masteryBreakdown.explain"
+  | "chart.scoreDistribution.explain"
+  | "chart.trendOverTime.explain"
+  | "chart.subjectComparisons.explain"
+  | "chart.performanceClusters.explain"
+  | "chart.categoryHeatmap.explain"
   | "tabs.overview"
   | "tabs.individual"
   | "tabs.extra"
@@ -79,8 +88,24 @@ export type TranslationKey =
   | "individual.category"
   | "individual.performanceBand"
   | "individual.trendFilter"
+  | "individual.sort"
+  | "individual.sortName"
+  | "individual.sortGradeHigh"
+  | "individual.sortGradeLow"
+  | "individual.sortEfficiency"
+  | "individual.sortImprovement"
+  | "individual.sortConsistency"
+  | "individual.sortRecords"
   | "individual.all"
   | "individual.profile"
+  | "individual.efficiency"
+  | "individual.efficiencyBand"
+  | "individual.efficiencyBody"
+  | "individual.scoringImpact"
+  | "individual.masteryImpact"
+  | "individual.consistencyImpact"
+  | "individual.momentumImpact"
+  | "individual.coverageImpact"
   | "individual.lowHigh"
   | "individual.progression"
   | "individual.distribution"
@@ -217,7 +242,7 @@ const translations: Record<TranslationKey, string> = {
   "language.mn": "Монгол",
   "language.saved": "Saved locally",
   "language.switchLabel": "Language",
-  "upload.kicker": "Local-first classroom analytics",
+  "upload.kicker": "Classroom analytics",
   "upload.title": "Upload school CSVs and inspect classroom-level analytics.",
   "upload.drop": "Drop a CSV file or browse",
   "upload.privacy": "Rows stay in browser memory. The app only asks for mapping help when the score column is unclear.",
@@ -248,6 +273,15 @@ const translations: Record<TranslationKey, string> = {
   "common.nothing": "Nothing to see here :p",
   "common.aggregateOnly": "Aggregate only",
   "common.localFiles": "Local files",
+  "charts.explain": "Explain this chart",
+  "charts.hideExplanation": "Hide explanation",
+  "chart.categoryPerformance.explain": "Compares each mapped category, skill, standard, or topic by average score and mastery rate. Use it to spot stronger or weaker classroom-level areas, not to infer causes or evaluate individual students.",
+  "chart.masteryBreakdown.explain": "Groups all normalized records into performance bands. This is an aggregate classroom distribution, not a ranking, diagnosis, or label for any student.",
+  "chart.scoreDistribution.explain": "Shows how records are spread across score ranges from 0-100. Values are kept within the valid 0-100 visualization range so impossible above-100 buckets do not appear.",
+  "chart.trendOverTime.explain": "Shows how the classroom average moves across dates or ordered assessment segments. It highlights past-to-present movement only; it does not predict future outcomes.",
+  "chart.subjectComparisons.explain": "Compares average performance across mapped subjects, courses, terms, or other broad groups. Interpret groups with different record counts carefully.",
+  "chart.performanceClusters.explain": "Counts anonymous records in broad performance bands. This helps reveal classroom-level spread without exposing student rankings or risk scores.",
+  "chart.categoryHeatmap.explain": "Color-codes mapped categories by average score. Cooler greens suggest stronger aggregate averages; warmer colors suggest areas worth reviewing with the underlying record count.",
   "tabs.overview": "Overview",
   "tabs.individual": "Individual",
   "tabs.extra": "Extra",
@@ -287,8 +321,24 @@ const translations: Record<TranslationKey, string> = {
   "individual.category": "Category",
   "individual.performanceBand": "Performance band",
   "individual.trendFilter": "Trend",
+  "individual.sort": "Sort students",
+  "individual.sortName": "Name A-Z",
+  "individual.sortGradeHigh": "Grade high-low",
+  "individual.sortGradeLow": "Grade low-high",
+  "individual.sortEfficiency": "EFF rating high-low",
+  "individual.sortImprovement": "Improvement high-low",
+  "individual.sortConsistency": "Consistency high-low",
+  "individual.sortRecords": "Record count high-low",
   "individual.all": "All",
   "individual.profile": "Student profile",
+  "individual.efficiency": "EFF Rating",
+  "individual.efficiencyBand": "Efficiency band",
+  "individual.efficiencyBody": "NBA-style deterministic efficiency blends grade average, mastery, consistency, trend momentum, and coverage depth. It is a classroom analytics signal, not a student label or prediction.",
+  "individual.scoringImpact": "Scoring impact",
+  "individual.masteryImpact": "Mastery impact",
+  "individual.consistencyImpact": "Consistency impact",
+  "individual.momentumImpact": "Momentum impact",
+  "individual.coverageImpact": "Coverage impact",
   "individual.lowHigh": "Low / high",
   "individual.progression": "Progression",
   "individual.distribution": "Score distribution",
@@ -414,7 +464,7 @@ const translations: Record<TranslationKey, string> = {
   "formulas.extraBody": "Extra modules are advanced statistical signals for classroom review. They show relationships, balance, volatility, and coverage without making causal claims.",
   "formulas.snapshot": "Current Dataset Snapshot",
   "architecture.kicker": "System architecture",
-  "architecture.title": "How the local-first analytics engine is built",
+  "architecture.title": "How the analytics engine is built",
   "architecture.body": "This architecture page documents the browser-only pipeline, privacy model, AI boundaries, workers, exports, and deployment strategy.",
   "architecture.badge": "No database, no auth, no backend storage",
 };
@@ -426,7 +476,7 @@ const mn: Partial<Record<TranslationKey, string>> = {
   "language.mn": "Монгол",
   "language.saved": "Дотоодод хадгалсан",
   "language.switchLabel": "Хэл",
-  "upload.kicker": "Дотоод-first ангийн аналитик",
+  "upload.kicker": "Ангийн аналитик",
   "upload.title": "Сургуулийн CSV файлаа оруулаад ангийн түвшний аналитикаа харна уу.",
   "upload.drop": "CSV файлаа чирж оруулах эсвэл сонгох",
   "upload.privacy": "Мөрүүд зөвхөн браузерын санах ойд байна. Онооны багана тодорхойгүй үед л зураглалын тусламж асууна.",
@@ -457,6 +507,15 @@ const mn: Partial<Record<TranslationKey, string>> = {
   "common.nothing": "Одоогоор харах зүйл алга :p",
   "common.aggregateOnly": "Зөвхөн нэгтгэл",
   "common.localFiles": "Дотоод файл",
+  "charts.explain": "Энэ графикийг тайлбарлах",
+  "charts.hideExplanation": "Тайлбарыг нуух",
+  "chart.categoryPerformance.explain": "Зураглагдсан ангилал, чадвар, стандарт эсвэл сэдэв бүрийн дундаж оноо болон эзэмшлийн хувийг харьцуулна. Үүнийг ангийн түвшний хүчтэй эсвэл анхаарах хэсгийг харахад ашиглана; шалтгаан гэж дүгнэх эсвэл хувь сурагчийг үнэлэхэд ашиглахгүй.",
+  "chart.masteryBreakdown.explain": "Бүх нэгтгэсэн рекордыг гүйцэтгэлийн бүсүүдэд ангилна. Энэ нь ангийн түвшний тархалт бөгөөд сурагчийг эрэмбэлэх, оношлох, шошголох хэрэгсэл биш.",
+  "chart.scoreDistribution.explain": "Оноонууд 0-100 хүртэлх мужуудад хэрхэн тархсаныг харуулна. 100-аас дээш боломжгүй бүлэг гаргахгүйн тулд дүрслэл 0-100 хязгаарт хадгалагдана.",
+  "chart.trendOverTime.explain": "Огноо эсвэл дараалсан үнэлгээний хэсгүүдээр ангийн дундаж хэрхэн өөрчлөгдсөнийг харуулна. Энэ нь зөвхөн өнгөрснөөс одоог хүртэлх хөдөлгөөнийг илтгэнэ; ирээдүйг таамаглахгүй.",
+  "chart.subjectComparisons.explain": "Зураглагдсан хичээл, курс, улирал эсвэл өргөн бүлгүүдийн дундаж гүйцэтгэлийг харьцуулна. Рекордын тоо өөр бүлгүүдийг тайлбарлахдаа болгоомжтой харна.",
+  "chart.performanceClusters.explain": "Нэргүй рекордуудыг гүйцэтгэлийн өргөн бүсүүдээр тоолно. Энэ нь сурагчийн зэрэглэл эсвэл эрсдэлийн оноо гаргахгүйгээр ангийн түвшний тархалтыг харахад тусална.",
+  "chart.categoryHeatmap.explain": "Зураглагдсан ангиллуудын дундаж оноог өнгөөр кодлоно. Ногоон өнгө нь нэгтгэсэн дундаж өндөр байгааг, дулаан өнгө нь рекордын тоотой нь хамт дахин харах боломжтой хэсгийг илтгэнэ.",
   "tabs.overview": "Тойм",
   "tabs.individual": "Хувь хүн",
   "tabs.extra": "Extra",
@@ -496,8 +555,24 @@ const mn: Partial<Record<TranslationKey, string>> = {
   "individual.category": "Ангилал",
   "individual.performanceBand": "Гүйцэтгэлийн бүс",
   "individual.trendFilter": "Чиг хандлага",
+  "individual.sort": "Сурагч эрэмбэлэх",
+  "individual.sortName": "Нэр A-Z",
+  "individual.sortGradeHigh": "Дүн өндөр-бага",
+  "individual.sortGradeLow": "Дүн бага-өндөр",
+  "individual.sortEfficiency": "EFF үнэлгээ өндөр-бага",
+  "individual.sortImprovement": "Сайжрал өндөр-бага",
+  "individual.sortConsistency": "Тогтвортой байдал өндөр-бага",
+  "individual.sortRecords": "Рекордын тоо өндөр-бага",
   "individual.all": "Бүгд",
   "individual.profile": "Сурагчийн профайл",
+  "individual.efficiency": "EFF үнэлгээ",
+  "individual.efficiencyBand": "Үр ашигт байдлын бүс",
+  "individual.efficiencyBody": "NBA маягийн детерминистик EFF нь дундаж дүн, эзэмшил, тогтвортой байдал, чиг хандлагын хөдөлгөөн, хамралтын гүнийг нэгтгэнэ. Энэ нь ангийн аналитик дохио бөгөөд сурагчийг шошголох эсвэл таамаглах хэрэгсэл биш.",
+  "individual.scoringImpact": "Онооны нөлөө",
+  "individual.masteryImpact": "Эзэмшлийн нөлөө",
+  "individual.consistencyImpact": "Тогтвортой байдлын нөлөө",
+  "individual.momentumImpact": "Хөдөлгөөний нөлөө",
+  "individual.coverageImpact": "Хамралтын нөлөө",
   "individual.lowHigh": "Доод / дээд",
   "individual.progression": "Ахиц",
   "individual.distribution": "Онооны тархалт",
@@ -623,7 +698,7 @@ const mn: Partial<Record<TranslationKey, string>> = {
   "formulas.extraBody": "Extra модуль нь ангийн түвшний хяналтад зориулсан дэвшилтэт статистик дохио. Хамаарал, тэнцвэр, хэлбэлзэл, хамралтыг харуулна, шалтгаан гэж дүгнэхгүй.",
   "formulas.snapshot": "Одоогийн өгөгдлийн агшин",
   "architecture.kicker": "Системийн архитектур",
-  "architecture.title": "Дотоод-first аналитик хөдөлгүүр хэрхэн бүтээгдсэн бэ",
+  "architecture.title": "Аналитик хөдөлгүүр хэрхэн бүтээгдсэн бэ",
   "architecture.body": "Энэ архитектурын хуудас браузер-only pipeline, нууцлалын загвар, AI хязгаар, worker, экспорт, deploy стратегийг баримтжуулна.",
   "architecture.badge": "Өгөгдлийн сангүй, нэвтрэлтгүй, backend хадгалалтгүй",
 };

@@ -1,4 +1,5 @@
 import type { ColumnInference, ColumnMapping, MappingValidation } from "@/lib/types";
+import { isProtectedDateHeader } from "@/lib/headerRoles";
 import { inferStudentIdentifierRole } from "@/lib/privacy";
 
 export function mappingsFromInference(inferences: ColumnInference[]): ColumnMapping[] {
@@ -45,6 +46,17 @@ export function mappingsFromInference(inferences: ColumnInference[]): ColumnMapp
 export function protectStudentIdentifierMapping(mapping: ColumnMapping): ColumnMapping {
   if (mapping.field === "ignore") {
     return mapping;
+  }
+
+  if (isProtectedDateHeader(mapping.column) && mapping.field !== "date") {
+    return {
+      ...mapping,
+      field: "date",
+      confidence: Math.max(mapping.confidence, 0.96),
+      confirmed: true,
+      headerDerivation: "none",
+      evidence: [...mapping.evidence, "Date headers are kept out of score and grade mappings."],
+    };
   }
 
   const protectedRole = inferStudentIdentifierRole(mapping.column);

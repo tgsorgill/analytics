@@ -23,6 +23,10 @@ export function parseScoreValue(value: unknown, explicitMaxScore?: number): Pars
     return null;
   }
 
+  if (isObviousDateText(text)) {
+    return null;
+  }
+
   const proficiency = parseProficiencyValue(text);
   if (proficiency !== null) {
     return {
@@ -165,4 +169,21 @@ export function scoreToPercent(score: number, maxScore?: number) {
 export function toNumber(value: unknown) {
   const number = Number(String(value).replace(",", ".").replace(/[^\d.-]/g, ""));
   return Number.isFinite(number) ? number : null;
+}
+
+function isObviousDateText(value: string) {
+  const trimmed = value.trim();
+  if (!/[./-]/.test(trimmed)) {
+    return false;
+  }
+
+  if (/^\d{4}[./-]\d{1,2}[./-]\d{1,2}$/.test(trimmed)) {
+    return true;
+  }
+
+  if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(trimmed)) {
+    return true;
+  }
+
+  return /\b\d{4}\b/.test(trimmed) && Number.isFinite(Date.parse(trimmed));
 }
